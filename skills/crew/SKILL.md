@@ -85,7 +85,8 @@ Write these sections, in this order:
 - `## Style` — the voice and structure the edit must match.
 - `## Deliverable` — the report file and the required closing `STATUS: done` line.
 
-Add `## Context`, `## Item <n>`, or `## Likely files touched` when the work needs them.
+Add `## Context`, `## Item <n>`, or `## Likely files touched` when the work needs them, and
+`## Amendments` last when the user accepts a phase 1 finding.
 
 `## Out of scope` names every category that applies to the run, and always these:
 
@@ -127,6 +128,14 @@ before deciding.
 
 Round cap is **3**. On exceeding it, stop, write the disagreement into `state.md`, and hand the
 open question to the user. Do not keep iterating.
+
+Phase 1 findings are objections against frozen scope, not authority to reopen it. The lead
+takes them to the user as proposed amendments; neither agent disposes of one alone. Append each
+accepted amendment to `task.md` under `## Amendments`, where it supersedes any earlier clause of
+that file it conflicts with, `## Out of scope` included. Record each rejected finding in
+`dismissed.md`. A non-empty `dismissed.md` puts the existing dismissal discipline into effect
+from the phase 2 prompt onward: attach the file to every later worker prompt and state that
+closed findings may not be re-raised.
 
 Phase 3 is deliberately cheap. A self-review by the author, in the author's own context, finds
 mechanical breakage and nothing else. The review budget belongs to phase 4.
