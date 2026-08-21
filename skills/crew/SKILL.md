@@ -54,10 +54,18 @@ Keep it out of Git without touching tracked files:
 grep -qx '.crew/' .git/info/exclude 2>/dev/null || echo '.crew/' >> .git/info/exclude
 ```
 
-Files in the run directory:
+Every shell invocation starts fresh, so the run id has to survive on disk. Write it to
+`.crew/.current` when the run starts and read the active run back from there afterwards.
+
+```bash
+printf '%s\n' '<run-id>' > .crew/.current
+```
+
+Files the run writes — `.crew/.current` at the `.crew/` root, the rest in the run directory:
 
 | File | Written by | Purpose |
 | --- | --- | --- |
+| `.crew/.current` | lead | Active run id, written at run start; how a later invocation finds the run |
 | `task.md` | lead | Frozen scope: goal, acceptance criteria, out of scope, likely files |
 | `plan-check.md` | worker | Optional pre-implementation objections |
 | `report-<n>.md` | worker | What it did, what it checked, open questions |
@@ -132,6 +140,23 @@ herdr agent start crew-<run-id-suffix> --kind <worker-kind> --pane <pane-id> --t
 Start with no native arguments. The worker's own configuration decides its permissions; that
 is deliberate, and the supervision loop below is what keeps the run moving. Pass arguments
 after `--` only when the user opts in for that run.
+
+`agent start` returns `interactive_ready: true` on lifecycle detection, not on the worker TUI
+accepting keystrokes. Wait for the worker's composer before the first prompt; a prompt sent
+earlier is dropped without an error, and the markers below hold only while that composer is
+empty, between `agent start` and the worker's first turn.
+
+| Worker kind | Composer marker |
+| --- | --- |
+| `codex` | `Ask Codex` |
+| `claude` | `Try "` |
+
+```bash
+herdr pane wait-output <pane-id> --regex <marker> --source visible --timeout 60000
+```
+
+For a kind absent from this table, fall back to the re-prompt-once rule under Known failure
+modes.
 
 ## Prompting the worker
 
@@ -220,8 +245,9 @@ Enforced rules:
 
 - `agent_pane_busy` — the split pane has not reached its shell prompt. Wait for the prompt.
 - `interactive_ready` false positive — `agent start` reports `interactive_ready: true` before
-  the worker TUI accepts input, so the first prompt is silently lost. Let the artifact check
-  catch the missing output, then apply the existing re-prompt-once rule.
+  the worker TUI accepts input, so the first prompt is silently lost. Wait for the composer
+  marker in "Starting the worker". For a worker kind with no known marker, let the artifact
+  check catch the missing output, then apply the existing re-prompt-once rule.
 - Self-update exit — a worker self-updates on launch, exits, and releases its name. Wait for
   the same pane to return to a shell prompt, then start the agent again in that pane under the
   same name.
