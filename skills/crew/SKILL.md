@@ -126,16 +126,19 @@ before deciding.
 | 5 | worker | `review-<n>.md`, `dismissed.md` | code, `report-<n+1>.md` | Artifact present with `STATUS: done` |
 | 6 | lead | new `git diff` | `review-<n+1>.md` | `approve` → stop. `block` → round += 1, return to 5. |
 
-Round cap is **3**. On exceeding it, stop, write the disagreement into `state.md`, and hand the
-open question to the user. Do not keep iterating.
+Round 1 spans phases 2 through 4. Use the round number for `<n>` in `report-<n>.md` and
+`review-<n>.md`. A `block` in phase 4 starts round 2 at phase 5. After each later `block`,
+increment the round before returning to phase 5. Round cap is **3**. If the increment would
+start round 4, do not return to phase 5. Stop, copy every unresolved finding that caused the
+`block`, including its `withdraw_if` condition, into `state.md`, and hand them to the user. Do
+not keep iterating.
 
 Phase 1 findings are objections against frozen scope, not authority to reopen it. The lead
 takes them to the user as proposed amendments; neither agent disposes of one alone. Append each
 accepted amendment to `task.md` under `## Amendments`, where it supersedes any earlier clause of
 that file it conflicts with, `## Out of scope` included. Record each rejected finding in
-`dismissed.md`. A non-empty `dismissed.md` puts the existing dismissal discipline into effect
-from the phase 2 prompt onward: attach the file to every later worker prompt and state that
-closed findings may not be re-raised.
+`dismissed.md`. From the phase 2 prompt onward, follow the dismissal discipline under
+"Review discipline" whenever that file is non-empty.
 
 Phase 3 is deliberately cheap. A self-review by the author, in the author's own context, finds
 mechanical breakage and nothing else. The review budget belongs to phase 4.
