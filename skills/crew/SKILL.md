@@ -119,7 +119,7 @@ A freshly split pane is not immediately an available shell; `agent start` fails 
 `agent_pane_busy` until the interactive prompt appears. Confirm the prompt first:
 
 ```bash
-herdr pane read <pane-id> --source detection --lines 5
+herdr pane wait-output <pane-id> --regex '[#$%>❯] ?$' --source detection --lines 5 --timeout 60000
 ```
 
 Then start the worker with a name unique among live agents (`herdr agent list` shows the live
@@ -219,6 +219,12 @@ Enforced rules:
 ## Known failure modes
 
 - `agent_pane_busy` — the split pane has not reached its shell prompt. Wait for the prompt.
+- `interactive_ready` false positive — `agent start` reports `interactive_ready: true` before
+  the worker TUI accepts input, so the first prompt is silently lost. Let the artifact check
+  catch the missing output, then apply the existing re-prompt-once rule.
+- Self-update exit — a worker self-updates on launch, exits, and releases its name. Wait for
+  the same pane to return to a shell prompt, then start the agent again in that pane under the
+  same name.
 - `agent_prompt_stalled` — no lifecycle change within five seconds of a prompt. Do not resend
   blindly; read the pane first.
 - `agent_blocked` — the worker is at a dialog. `prompt` refuses by design; answer with
