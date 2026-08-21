@@ -24,11 +24,30 @@ for that. The skill refuses the same-kind case on purpose.
 
 ## Install
 
+The skill is plain Markdown in this repository. Nothing is published to npm.
+
+**Direct — no tooling.** Clone anywhere, then symlink into each agent's skills directory:
+
+```bash
+git clone https://github.com/weirdry/crew.git ~/_GIT/crew
+ln -s ~/_GIT/crew/skills/crew ~/.claude/skills/crew   # Claude Code
+ln -s ~/_GIT/crew/skills/crew ~/.codex/skills/crew    # Codex ($CODEX_HOME/skills)
+```
+
+Because the link points at the checkout, editing the repository updates the installed skill
+immediately. This is the right setup while iterating on it.
+
+**With the skills CLI.** The [skills](https://github.com/vercel-labs/skills) CLI comes from npm,
+but the skill itself is fetched from this Git repository:
+
 ```bash
 npx skills add weirdry/crew --skill crew -g
 ```
 
-Pick the agents you start sessions from. Then, inside a Herdr pane:
+It adds a lockfile and `npx skills update -g`, and it resolves agent directories for you —
+Codex additionally reads `~/.agents/skills/`, which the CLI treats as its universal location.
+
+Then, inside a Herdr pane:
 
 ```
 crew로 이 작업 코덱스랑 같이 해줘
