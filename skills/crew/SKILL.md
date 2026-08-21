@@ -183,7 +183,7 @@ name fails safely without sending input. `esc` is the canonical Escape name.
 | Class | Examples | Action |
 | --- | --- | --- |
 | (a) answer yourself | edit approval for a file inside the workspace; running tests, linters, or builds; a choice between options that `task.md` already settles; a clarifying question answerable from `task.md` | `send-keys`, then log the answer in `state.md` |
-| (b) escalate to the user | deleting or moving files; bulk rewrites; network access; writing outside the workspace; `git commit`, `push`, `reset`, or history rewriting; credentials or secrets; workspace trust prompts; anything not derivable from `task.md` | `herdr notification`, report what is being asked, stop the round |
+| (b) escalate to the user | deleting or moving files; bulk rewrites; network access; writing outside the workspace; `git commit`, `push`, `reset`, or history rewriting; credentials or secrets; workspace trust prompts; anything not derivable from `task.md` | `herdr notification show "<title>" --body "<what is being asked>" --sound request`, report what is being asked, stop the round |
 
 When the class is not obvious, treat it as (b). The user watching a pane is the whole point of
 running this in Herdr; do not spend that on convenience.
