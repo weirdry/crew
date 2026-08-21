@@ -105,3 +105,7 @@ second model's opinion worth its cost.
 
 Early. The loop, the artifact protocol, and the escalation boundary are settled; helper scripts
 are deliberately absent until real runs show which parts repeat.
+
+## License
+
+MIT
