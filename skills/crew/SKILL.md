@@ -205,38 +205,59 @@ approval authority.
 
 ```
 prompt --wait  →  settled
+same_dialog_repeats = 0
+failed_dialog = none
+no_dialog_reads = 0
 repeat:
-  status = herdr agent get <worker>            # agent_status
-  working  → herdr agent wait <worker> --timeout <ms>     # server blocks; costs no tokens
-  blocked  → herdr agent read <worker> --source visible   # read the dialog
+  agent = herdr agent get <worker>             # agent_status and state_change_seq
+  status = agent.agent_status
+  working  → no_dialog_reads = 0
+             herdr agent wait <worker> --timeout <ms>     # server blocks; costs no tokens
+  blocked  → pane = herdr agent read <worker> --source visible
+             artifact present with STATUS: done ? next phase
+             free-text question without options ? apply the free-text rule below
+             no explicit confirmation prompt with a selectable option list ?
+               no_dialog_reads += 1
+               no_dialog_reads < 3 → pause for one second, then continue
+               otherwise → escalate as unanswerable, then stop this round
+             no_dialog_reads = 0
+             dialog_text = confirmation prompt and option-list text only  # never the whole frame
+             dialog_agent = herdr agent get <worker>
+             dialog_agent.agent_status != blocked ? continue
+             failed_dialog != none and dialog_text == failed_dialog.text and
+               dialog_agent.state_change_seq == failed_dialog.pre_key_seq ?
+                 same_dialog_repeats += 1
+               : same_dialog_repeats = 0
+             same_dialog_repeats > 5 ? escalate instead of sending again, then stop this round
              classify (see below)
-             class (a) → herdr agent send-keys <worker> <keys>
-                         → confirm a state change with herdr agent get <worker>, then continue
+             class (a) → pre_key_seq = dialog_agent.state_change_seq
+                         herdr agent send-keys <worker> <keys>
+                         poll herdr agent get <worker> at bounded intervals until
+                           state_change_seq > pre_key_seq or the post-key timeout expires
+                         advanced → failed_dialog = none; same_dialog_repeats = 0; continue
+                         timeout  → key did not land;
+                                    failed_dialog = (dialog_text, pre_key_seq); continue
              class (b) → report the request to the user, attempt a best-effort notification,
                          read .result.shown, then stop this round
   unknown  → not complete. read the pane, then wait again.
   idle|done→ artifact present with STATUS: done ? next phase : re-prompt once, then escalate
 ```
 
-Prefer `herdr agent wait` over polling: it blocks server-side, so a long worker turn costs the
-lead nothing.
-
-Cap automatic answers at **5 per round**. A dialog that keeps reappearing means your answers
-are not landing; escalate instead of looping.
+Use `herdr agent wait` for `working` turns: it blocks server-side, so a long worker turn costs
+the lead nothing.
 
 `herdr agent send-keys` validates every key name before writing any bytes, so an unknown key
 name fails safely without sending input. `esc` is the canonical Escape name.
-
-After `send-keys`, confirm its effect from a state change reported by `herdr agent get`. Do not
-judge it from the first pane read, which can still show the pre-key frame. Wait for the state
-change instead of sending the key again.
 
 ## Which inputs you may answer
 
 | Class | Examples | Action |
 | --- | --- | --- |
-| (a) answer yourself | edit approval for a file inside the workspace; running tests, linters, or builds; a choice between options that `task.md` already settles; a clarifying question answerable from `task.md` | `send-keys`, then log the answer in `state.md` |
+| (a) answer yourself | edit approval for a file inside the workspace; running tests, linters, or builds; a choice between options that `task.md` already settles; a clarifying question answerable from `task.md` | Apply the guarded `send-keys` path in the Supervision loop, then log the answer in `state.md` |
 | (b) escalate to the user | deleting or moving files; bulk rewrites; network access; writing outside the workspace; `git commit`, `push`, `reset`, or history rewriting; credentials or secrets; workspace trust prompts; anything not derivable from `task.md` | Report what is being asked directly to the user, attempt `herdr notification show "<title>" --body "<what is being asked>" --sound request` as a best-effort ping, read `.result.shown` from its response, then stop the round. If `shown` is `false`, tell the user that the ping was not shown. |
+
+A free-text question is not answerable with `send-keys`. Escalate it even when its answer is
+derivable from `task.md` and class (a) otherwise applies. Do not invent a text-entry mechanism.
 
 When the class is not obvious, treat it as (b). The user watching a pane is the whole point of
 running this in Herdr; do not spend that on convenience.
@@ -288,11 +309,9 @@ Enforced rules:
   same name.
 - `agent_prompt_stalled` — no lifecycle change within five seconds of a prompt. Do not resend
   blindly; read the pane first.
-- `agent_blocked` — the worker is at a dialog. `prompt` refuses by design; answer with
-  `send-keys` if class (a), escalate if class (b).
-- Stale post-key snapshot — the first pane read after `send-keys` can still show the pre-key
-  frame. Confirm the effect through a state change from `herdr agent get`; do not resend based
-  on that first read.
+- `agent_blocked` — `herdr agent prompt` refuses a worker that remains at a dialog. Return to
+  the `blocked` branch of the Supervision loop; do not retry the prompt until that branch
+  confirms the dialog answer, and stop if it escalates.
 - Notification no-op — `herdr notification show` can exit 0 with `.result.shown` set to
   `false`. Keep the lead's report as the mandatory escalation channel, inspect `shown`, and
   tell the user when the best-effort ping was not shown.
