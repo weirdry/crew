@@ -188,8 +188,10 @@ repeat:
   working  → herdr agent wait <worker> --timeout <ms>     # server blocks; costs no tokens
   blocked  → herdr agent read <worker> --source visible   # read the dialog
              classify (see below)
-             class (a) → herdr agent send-keys <worker> <keys>   → continue
-             class (b) → notify the user, stop this round
+             class (a) → herdr agent send-keys <worker> <keys>
+                         → confirm a state change with herdr agent get <worker>, then continue
+             class (b) → report the request to the user, attempt a best-effort notification,
+                         read .result.shown, then stop this round
   unknown  → not complete. read the pane, then wait again.
   idle|done→ artifact present with STATUS: done ? next phase : re-prompt once, then escalate
 ```
@@ -203,15 +205,22 @@ are not landing; escalate instead of looping.
 `herdr agent send-keys` validates every key name before writing any bytes, so an unknown key
 name fails safely without sending input. `esc` is the canonical Escape name.
 
+After `send-keys`, confirm its effect from a state change reported by `herdr agent get`. Do not
+judge it from the first pane read, which can still show the pre-key frame. Wait for the state
+change instead of sending the key again.
+
 ## Which inputs you may answer
 
 | Class | Examples | Action |
 | --- | --- | --- |
 | (a) answer yourself | edit approval for a file inside the workspace; running tests, linters, or builds; a choice between options that `task.md` already settles; a clarifying question answerable from `task.md` | `send-keys`, then log the answer in `state.md` |
-| (b) escalate to the user | deleting or moving files; bulk rewrites; network access; writing outside the workspace; `git commit`, `push`, `reset`, or history rewriting; credentials or secrets; workspace trust prompts; anything not derivable from `task.md` | `herdr notification show "<title>" --body "<what is being asked>" --sound request`, report what is being asked, stop the round |
+| (b) escalate to the user | deleting or moving files; bulk rewrites; network access; writing outside the workspace; `git commit`, `push`, `reset`, or history rewriting; credentials or secrets; workspace trust prompts; anything not derivable from `task.md` | Report what is being asked directly to the user, attempt `herdr notification show "<title>" --body "<what is being asked>" --sound request` as a best-effort ping, read `.result.shown` from its response, then stop the round. If `shown` is `false`, tell the user that the ping was not shown. |
 
 When the class is not obvious, treat it as (b). The user watching a pane is the whole point of
 running this in Herdr; do not spend that on convenience.
+
+The lead's own report to the user is the mandatory escalation channel. The notification is
+only a best-effort ping on top of that report; exit status 0 does not prove delivery.
 
 ## Review discipline
 
@@ -234,6 +243,10 @@ Enforced rules:
 - A `blocker` with no `withdraw_if` is invalid. A blocker must be falsifiable and satisfiable.
 - At most 5 findings per review, at most 2 blockers. Rank by severity.
 - Every review ends with exactly one verdict: `approve`, `approve-with-nits`, or `block`.
+- Use `approve-with-nits` only when no blocker remains. Send the nits to the still-live worker
+  as one final pass that does not consume a round, and allow at most one such pass. If the
+  worker is already gone, record the nits under `Deferred nits` in the current `review-<n>.md`
+  and finish the run.
 - An approval must list what was actually inspected: files read, commands run, tests executed.
   An approval with no evidence of inspection is invalid; redo the review.
 - Dismissed findings go to `dismissed.md` with a one-line reason. They are closed. Attach
@@ -255,6 +268,12 @@ Enforced rules:
   blindly; read the pane first.
 - `agent_blocked` — the worker is at a dialog. `prompt` refuses by design; answer with
   `send-keys` if class (a), escalate if class (b).
+- Stale post-key snapshot — the first pane read after `send-keys` can still show the pre-key
+  frame. Confirm the effect through a state change from `herdr agent get`; do not resend based
+  on that first read.
+- Notification no-op — `herdr notification show` can exit 0 with `.result.shown` set to
+  `false`. Keep the lead's report as the mandatory escalation channel, inspect `shown`, and
+  tell the user when the best-effort ping was not shown.
 - Alternate-screen loss — TUI worker output that scrolls away is unrecoverable from scrollback
   regardless of `--lines`. This is why artifacts are files.
 - Name collision — agent names must be unique among live agents across all workspaces.
