@@ -66,7 +66,7 @@ Files the run writes — `.crew/.current` at the `.crew/` root, the rest in the 
 | File | Written by | Purpose |
 | --- | --- | --- |
 | `.crew/.current` | lead | Active run id, written at run start; how a later invocation finds the run |
-| `task.md` | lead | Frozen scope: goal, acceptance criteria, out of scope, likely files |
+| `task.md` | lead | Frozen scope; contents specified in "What `task.md` must contain" below |
 | `plan-check.md` | worker | Optional pre-implementation objections |
 | `report-<n>.md` | worker | What it did, what it checked, open questions |
 | `review-<n>.md` | lead | Structured findings and verdict |
@@ -74,6 +74,28 @@ Files the run writes — `.crew/.current` at the `.crew/` root, the rest in the 
 | `state.md` | lead | Current phase, round number, worker name, pane id |
 
 `state.md` makes a run resumable if the lead session dies. Update it at every phase boundary.
+
+### What `task.md` must contain
+
+Write these sections, in this order:
+
+- `# Task` — one paragraph naming the goal and the files that hold the evidence for it.
+- `## Acceptance criteria` — numbered, each checkable by reading a file or running a command.
+- `## Out of scope` — the categories below, each stated as a prohibition.
+- `## Style` — the voice and structure the edit must match.
+- `## Deliverable` — the report file and the required closing `STATUS: done` line.
+
+Add `## Context`, `## Item <n>`, or `## Likely files touched` when the work needs them.
+
+`## Out of scope` names every category that applies to the run, and always these:
+
+- Protected regions of the file under edit: name them explicitly.
+- Other files: `README.md`, `LICENSE`, and anything else outside the named target.
+- Scope creep inside the target: rewriting or adding beyond what the items require.
+- Git operations of any kind.
+- Network access of any kind, including package installation.
+- Machine configuration.
+- Panes the worker did not create.
 
 ## Completion is proved by artifacts, not by state
 
