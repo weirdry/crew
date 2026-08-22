@@ -103,8 +103,10 @@ second model's opinion worth its cost.
 
 ## Status
 
-Early. The loop, the artifact protocol, and the escalation boundary are settled; helper scripts
-are deliberately absent until real runs show which parts repeat.
+Early. The loop, the artifact protocol, and the escalation boundary are settled. Small helper
+scripts now carry the repeated run setup, worker startup, artifact check, and guarded key-send
+mechanics. Worker startup records pane ownership and guarded cleanup verifies it before close;
+classification, approval authority, and verdicts remain with the lead.
 
 ## License
 

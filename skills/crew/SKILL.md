@@ -44,21 +44,59 @@ git rev-parse HEAD 2>/dev/null; git status --short 2>/dev/null | head -20
 
 All data moves through files. The terminal carries control signals only.
 
+In the commands below, `<crew-skill-dir>` is the directory containing this `SKILL.md`. Resolve
+it from the loaded skill location; keep the shell cwd at the repository where the run belongs.
+
 Create `<cwd>/.crew/<run-id>/` where `<run-id>` is `date +%Y%m%d-%H%M%S`. The run directory
 must live inside the working tree: worker sandboxes are commonly workspace-scoped, so a path
 outside the workspace turns every worker write into an approval prompt.
 
-Keep it out of Git without touching tracked files:
+Initialize the run with the helper. It resolves the real Git exclude file before writing run
+state, including when the cwd is below the repository root or `.git` is a linked-worktree file.
+It prints the run id. It refuses with exit status 6 when `.crew/.current` already exists and
+prints the run it preserved. Pass `--replace-current` only after the user explicitly approves
+repointing the active-run pointer; the existing run directory remains untouched.
 
 ```bash
-grep -qx '.crew/' .git/info/exclude 2>/dev/null || echo '.crew/' >> .git/info/exclude
+<crew-skill-dir>/scripts/run-init.sh
 ```
 
-Every shell invocation starts fresh, so the run id has to survive on disk. Write it to
-`.crew/.current` when the run starts and read the active run back from there afterwards.
+Only after that explicit approval, run the override instead:
 
 ```bash
-printf '%s\n' '<run-id>' > .crew/.current
+<crew-skill-dir>/scripts/run-init.sh --replace-current
+```
+
+To perform the same steps by hand, resolve the exclude path through Git, add `.crew/` only when
+absent, create the timestamped directory, write the state fields shown in the file table, and
+then update `.crew/.current`:
+
+```bash
+exclude_file=$(git rev-parse --path-format=absolute --git-path info/exclude)
+grep -qx '.crew/' "$exclude_file" 2>/dev/null || printf '%s\n' '.crew/' >> "$exclude_file"
+if [ -e .crew/.current ]; then
+  IFS= read -r current_run < .crew/.current
+  printf 'current_run=%s\noutcome=current-exists\n' "$current_run" >&2
+  exit 6
+fi
+run_id=$(date +%Y%m%d-%H%M%S)
+mkdir -p .crew
+mkdir ".crew/$run_id"
+printf '%s\n' '# Crew state' '' \
+  '- Phase: 0 — scope not frozen' '- Round: 0 of 3' \
+  '- Worker: none' '- Pane: none' > ".crew/$run_id/state.md"
+(set -C; printf '%s\n' "$run_id" > .crew/.current)
+```
+
+The noclobber write catches a concurrent creator after the manual precheck. If it fails, leave
+the existing pointer untouched, remove only the run directory just created by this attempt,
+and stop. Do not perform a manual replacement; use the helper's explicit override path.
+
+Every shell invocation starts fresh, so the run id has to survive on disk. Read the active run
+back from `.crew/.current` afterwards:
+
+```bash
+IFS= read -r run_id < .crew/.current
 ```
 
 Files the run writes — `.crew/.current` at the `.crew/` root, the rest in the run directory:
@@ -66,6 +104,7 @@ Files the run writes — `.crew/.current` at the `.crew/` root, the rest in the 
 | File | Written by | Purpose |
 | --- | --- | --- |
 | `.crew/.current` | lead | Active run id, written at run start; how a later invocation finds the run |
+| `worker-pane.json` | `worker-start.sh` | Immutable lead/worker pane ownership receipt used by guarded cleanup |
 | `task.md` | lead | Frozen scope; contents specified in "What `task.md` must contain" below |
 | `plan-check.md` | worker | Optional pre-implementation objections |
 | `report-<n>.md` | worker | What it did, what it checked, open questions |
@@ -110,6 +149,15 @@ Therefore: a phase is complete only when its output file exists **and** its last
 STATUS: done
 ```
 
+Use the helper for that exact check:
+
+```bash
+<crew-skill-dir>/scripts/artifact-done.sh <artifact-path>
+```
+
+Exit status 0 is the only completed result. Without the helper, verify that the file exists and
+compare its last line byte-for-byte with `STATUS: done`.
+
 Instruct the worker to end every artifact with that exact line. A settled lifecycle state with
 no artifact means the phase is still running or the worker misunderstood; re-read the pane
 before deciding.
@@ -149,6 +197,23 @@ In phase 4 review the diff against **the user's original request**, not only aga
 ## Starting the worker
 
 Inspect your own pane, then split. Wide pane splits right, tall or narrow pane splits down.
+
+Use the helper for the complete mechanical sequence. It requires an active run, records the
+caller and created worker in that run's `worker-pane.json`, and prints `pane_id=<id>`, the
+composer-marker result, and the receipt path:
+
+```bash
+<crew-skill-dir>/scripts/worker-start.sh <worker-name> <worker-kind>
+```
+
+The helper waits for composer markers only for the kinds in the table below. For any other kind
+it prints `composer_wait=skipped:no-documented-marker`; retain the artifact check and
+re-prompt-once fallback. If a post-split step fails, the helper closes its pane. Exit status 8
+means that cleanup failed and prints `pane_id=<id>` for manual recovery. Exit status 9 means
+the ownership receipt failed and the helper closed the new pane.
+
+To perform the same sequence by hand, inspect the caller pane and choose the direction from its
+rectangle before splitting:
 
 ```bash
 herdr pane layout --pane "$HERDR_PANE_ID"
@@ -192,6 +257,11 @@ herdr pane wait-output <pane-id> --regex <marker> --source visible --timeout 600
 For a kind absent from this table, fall back to the re-prompt-once rule under Known failure
 modes.
 
+When performing startup by hand, write `worker-pane.json` with version 1 and the exact
+`lead_pane_id`, `worker_pane_id`, `worker_name`, and `worker_kind` values before the first
+prompt. Create it exclusively; never overwrite an existing receipt. The guarded finishing step
+depends on this ownership evidence.
+
 ## Prompting the worker
 
 Every prompt is a pointer, never a payload. Long text, code, and Korean prose in a shell
@@ -226,7 +296,7 @@ repeat:
   working  → no_dialog_reads = 0
              herdr agent wait <worker> --timeout <ms>     # server blocks; costs no tokens
   blocked  → pane = herdr agent read <worker> --source visible
-             artifact present with STATUS: done ? next phase
+             artifact-done.sh <artifact-path> exits 0 ? next phase
              free-text question without options ? apply the free-text rule below
              no explicit confirmation prompt with a selectable option list ?
                no_dialog_reads += 1
@@ -242,13 +312,14 @@ repeat:
                : same_dialog_repeats = 0
              same_dialog_repeats > 5 ? escalate instead of sending again, then stop this round
              classify (see below)
-             class (a) → pre_key_seq = dialog_agent.state_change_seq
-                         herdr agent send-keys <worker> <keys>
-                         poll herdr agent get <worker> at bounded intervals until
-                           state_change_seq > pre_key_seq or the post-key timeout expires
-                         advanced → failed_dialog = none; same_dialog_repeats = 0; continue
-                         timeout  → key did not land;
-                                    failed_dialog = (dialog_text, pre_key_seq); continue
+             class (a) → answer-dialog.sh <worker> <keys>
+                         advanced → read printed pre_key_seq and post_key_seq;
+                                    failed_dialog = none; same_dialog_repeats = 0; continue
+                         send failure or timeout → read printed pre_key_seq;
+                                                   key did not land;
+                                                   failed_dialog = (dialog_text, pre_key_seq);
+                                                   continue
+                         guard refusal → return to the blocked guard without sending
              class (b) → report the request to the user, attempt a best-effort notification,
                          read .result.shown, then stop this round
   unknown  → not complete. read the pane, then wait again.
@@ -257,6 +328,24 @@ repeat:
 
 Use `herdr agent wait` for `working` turns: it blocks server-side, so a long worker turn costs
 the lead nothing.
+
+In the loop, resolve the helper calls as:
+
+```bash
+<crew-skill-dir>/scripts/artifact-done.sh <artifact-path>
+<crew-skill-dir>/scripts/answer-dialog.sh <worker> <keys>
+```
+
+The lead identifies `dialog_text`, applies the repeat test, classifies (a) versus (b), and
+chooses the keys before calling `answer-dialog.sh`. The helper only rechecks the mechanical
+blocked-plus-visible-option-list guard, captures and prints `pre_key_seq`, sends the supplied
+keys, and polls. It never decides whether a dialog may be answered.
+
+Without the answer helper, expand its call exactly as follows: capture
+`dialog_agent.state_change_seq` as `pre_key_seq`, run `herdr agent send-keys <worker> <keys>`,
+then poll `herdr agent get <worker>` at bounded intervals until `state_change_seq` is greater
+than `pre_key_seq` or the post-key timeout expires. Preserve `pre_key_seq` on timeout so the
+lead can set `failed_dialog = (dialog_text, pre_key_seq)`.
 
 `herdr agent send-keys` validates every key name before writing any bytes, so an unknown key
 name fails safely without sending input. `esc` is the canonical Escape name.
@@ -330,11 +419,29 @@ Enforced rules:
 - Alternate-screen loss — TUI worker output that scrolls away is unrecoverable from scrollback
   regardless of `--lines`. This is why artifacts are files.
 - Name collision — agent names must be unique among live agents across all workspaces.
+- Wrong-pane cleanup — never close `--current`, `$HERDR_PANE_ID`, or a pane copied from visual
+  position. `worker-stop.sh` closes only the worker in the active run's ownership receipt and
+  refuses unless the caller is the recorded lead and the live worker still resolves to the
+  recorded pane.
 - `unknown` — Herdr cannot classify the pane. It is not evidence of completion.
 
 ## Finishing
 
-- Close only the panes this run created: `herdr pane close <pane-id>`.
+- Close the run-owned worker with the guarded helper:
+
+  ```bash
+  <crew-skill-dir>/scripts/worker-stop.sh
+  ```
+
+  It reads the active run's immutable `worker-pane.json`, refuses when the caller is not the
+  recorded lead or the target equals the caller/lead, verifies that the recorded worker name
+  still resolves to the recorded pane, and only then runs `herdr pane close
+  <recorded-worker-pane-id>`.
+- Without the helper, read all four receipt fields, require `lead_pane_id == $HERDR_PANE_ID`,
+  require `worker_pane_id != $HERDR_PANE_ID`, and run `herdr agent get
+  <recorded-worker-name>`. Close the pane only when its live `pane_id` exactly equals the
+  receipt's `worker_pane_id`. Never use `--current` for cleanup.
+- Keep the lead pane open. Never close a pane that lacks this run's ownership receipt.
 - Leave the run directory in place; it is the audit trail. Tell the user its path.
 - Report: rounds used, final verdict, files changed, dismissed findings, and anything escalated
   but never answered.
