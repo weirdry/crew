@@ -54,8 +54,10 @@ outside the workspace turns every worker write into an approval prompt.
 Initialize the run with the helper. It resolves the real Git exclude file before writing run
 state, including when the cwd is below the repository root or `.git` is a linked-worktree file.
 It prints the run id. It refuses with exit status 6 when `.crew/.current` already exists and
-prints the run it preserved. Pass `--replace-current` only after the user explicitly approves
-repointing the active-run pointer; the existing run directory remains untouched.
+prints the run it preserved. On exit 6, read the named run's `state.md` before deciding: resume
+a genuinely open run; treat the pointer as abandoned only when its lead died. Pass
+`--replace-current` only after the user explicitly approves abandoning that run; its directory
+remains untouched.
 
 ```bash
 <crew-skill-dir>/scripts/run-init.sh
@@ -103,7 +105,7 @@ Files the run writes — `.crew/.current` at the `.crew/` root, the rest in the 
 
 | File | Written by | Purpose |
 | --- | --- | --- |
-| `.crew/.current` | lead | Active run id, written at run start; how a later invocation finds the run |
+| `.crew/.current` | lead | Active run id; present from initialization through an open run, removed after terminal Finishing |
 | `worker-pane.json` | `worker-start.sh` | Immutable lead/worker pane ownership receipt used by guarded cleanup |
 | `task.md` | lead | Frozen scope; contents specified in "What `task.md` must contain" below |
 | `plan-check.md` | worker | Optional pre-implementation objections |
@@ -427,7 +429,10 @@ Enforced rules:
 
 ## Finishing
 
-- Close the run-owned worker with the guarded helper:
+- A run stopped at the round cap with unresolved blockers or at an unanswered class-(b)
+  escalation has no terminal verdict. Keep `.crew/.current` and use its `state.md` as the resume
+  point; do not enter the remaining Finishing steps.
+- If `worker-pane.json` exists, close the run-owned worker with the guarded helper first:
 
   ```bash
   <crew-skill-dir>/scripts/worker-stop.sh
@@ -436,11 +441,56 @@ Enforced rules:
   It reads the active run's immutable `worker-pane.json`, refuses when the caller is not the
   recorded lead or the target equals the caller/lead, verifies that the recorded worker name
   still resolves to the recorded pane, and only then runs `herdr pane close
-  <recorded-worker-pane-id>`.
-- Without the helper, read all four receipt fields, require `lead_pane_id == $HERDR_PANE_ID`,
+  <recorded-worker-pane-id>`. Exit status 5 alone does not prove that the worker is absent; the
+  finishing helper below distinguishes an absent name from a live pane mismatch. Stop on every
+  other refusal. Skip this step when no receipt exists.
+- Without the worker helper, read all four receipt fields, require
+  `lead_pane_id == $HERDR_PANE_ID`,
   require `worker_pane_id != $HERDR_PANE_ID`, and run `herdr agent get
   <recorded-worker-name>`. Close the pane only when its live `pane_id` exactly equals the
   receipt's `worker_pane_id`. Never use `--current` for cleanup.
+- After the worker closes, or after `worker-stop.sh` exits 5 because the recorded name is no
+  longer live, end the named run:
+
+  ```bash
+  <crew-skill-dir>/scripts/run-finish.sh "$run_id"
+  ```
+
+  It removes `.crew/.current` only when it still names `run_id`. A receipt makes it query the
+  recorded `worker_name`: a live result refuses removal, exact `agent_not_found` proves the
+  worker absent, and every other query failure stops safely. A run with no receipt proceeds.
+- Without the finishing helper, compare `.crew/.current` to `run_id`, then apply the same live
+  worker guard before removing only the pointer:
+
+  ```bash
+  IFS= read -r current_run < .crew/.current
+  test "$current_run" = "$run_id" || exit 1
+  test -d ".crew/$run_id" || exit 1
+  receipt=".crew/$run_id/worker-pane.json"
+  if test -e "$receipt"; then
+    worker_name=$(python3 -c '
+import json, sys
+data = json.load(open(sys.argv[1], encoding="utf-8"))
+name = data.get("worker_name")
+if not isinstance(name, str) or not name:
+    raise SystemExit("invalid worker_name")
+print(name)
+' "$receipt") || exit 1
+    if worker_result=$(herdr agent get "$worker_name" 2>&1); then
+      printf 'worker_name=%s\noutcome=refused:worker-live\n' "$worker_name" >&2
+      exit 1
+    fi
+    worker_error=$(python3 -c '
+import json, sys
+print(json.loads(sys.argv[1])["error"]["code"])
+' "$worker_result") || exit 1
+    test "$worker_error" = agent_not_found || exit 1
+  fi
+  IFS= read -r current_run < .crew/.current
+  test "$current_run" = "$run_id" || exit 1
+  rm .crew/.current
+  ```
+
 - Keep the lead pane open. Never close a pane that lacks this run's ownership receipt.
 - Leave the run directory in place; it is the audit trail. Tell the user its path.
 - Report: rounds used, final verdict, files changed, dismissed findings, and anything escalated

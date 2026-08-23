@@ -107,6 +107,8 @@ Early. The loop, the artifact protocol, and the escalation boundary are settled.
 scripts now carry the repeated run setup, worker startup, artifact check, and guarded key-send
 mechanics. Worker startup records pane ownership and guarded cleanup verifies it before close;
 classification, approval authority, and verdicts remain with the lead.
+The `run-finish.sh` helper carries the run-ending step alongside them: it removes the active-run
+pointer at terminal Finishing and keeps it only for an open run.
 
 ## License
 
