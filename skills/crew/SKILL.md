@@ -107,6 +107,7 @@ Files the run writes — `.crew/.current` at the `.crew/` root, the rest in the 
 | --- | --- | --- |
 | `.crew/.current` | lead | Active run id; present from initialization through an open run, removed after terminal Finishing |
 | `worker-pane.json` | `worker-start.sh` | Immutable lead/worker pane ownership receipt used by guarded cleanup |
+| `approvals.jsonl` | `approval.sh` | Run-scoped reusable approvals keyed by complete rendered command text |
 | `task.md` | lead | Frozen scope; contents specified in "What `task.md` must contain" below |
 | `plan-check.md` | worker | Optional pre-implementation objections |
 | `report-<n>.md` | worker | What it did, what it checked, open questions |
@@ -322,8 +323,12 @@ repeat:
                                                    failed_dialog = (dialog_text, pre_key_seq);
                                                    continue
                          guard refusal → return to the blocked guard without sending
-             class (b) → report the request to the user, attempt a best-effort notification,
-                         read .result.shown, then stop this round
+             class (b) → approval.sh check <worker>
+                         match → read printed command_b64;
+                                 answer-dialog.sh --expected-command-b64 <token> <worker> <keys>;
+                                 handle advanced, failed, and refused results as above
+                         no match or extraction failure → apply the class-(b) escalation and
+                                                          approval-scope rule below, then stop
   unknown  → not complete. read the pane, then wait again.
   idle|done→ artifact present with STATUS: done ? next phase : re-prompt once, then escalate
 ```
@@ -336,12 +341,44 @@ In the loop, resolve the helper calls as:
 ```bash
 <crew-skill-dir>/scripts/artifact-done.sh <artifact-path>
 <crew-skill-dir>/scripts/answer-dialog.sh <worker> <keys>
+<crew-skill-dir>/scripts/approval.sh check <worker>
 ```
 
 The lead identifies `dialog_text`, applies the repeat test, classifies (a) versus (b), and
 chooses the keys before calling `answer-dialog.sh`. The helper only rechecks the mechanical
 blocked-plus-visible-option-list guard, captures and prints `pre_key_seq`, sends the supplied
 keys, and polls. It never decides whether a dialog may be answered.
+
+For a recorded class-(b) match, read `command_b64` from `approval.sh check` and pin it at the
+send boundary:
+
+```bash
+<crew-skill-dir>/scripts/answer-dialog.sh \
+  --expected-command-b64 <command_b64> <worker> <keys>
+```
+
+The answer helper calls the same extractor immediately before sending and refuses with exit 3
+when the complete rendered command changed or can no longer be extracted. `approval.sh` also
+refuses extraction unless it finds the confirmation line, a complete command region, and the
+option list; a truncation marker or a frame cut that removes any anchor is an extraction
+failure. Its exit status 0 means recorded or matched, 1 means no match, 2 means bad arguments,
+3 means invalid active-run ownership, 4 means state/frame/extraction failure, and 5 means a
+record failure.
+
+Live extraction is verified for Codex worker command dialogs. The structural Claude branch is
+not live-verified; for Claude or any other unverified worker kind, treat exit 4 as an unavailable
+reuse path and escalate every occurrence normally.
+
+After the user answers an escalation, capture the still-visible command again. For reusable
+scope, run `approval.sh record <worker>` and use its printed `command_b64`; for a one-shot
+answer, use the `command_b64` printed with the no-match result. Pass that token to the pinned
+answer helper above. In both cases choose the worker UI's one-shot affirmative option.
+
+Without the approval helper, keep the complete rendered command region in the run record only
+after the user grants reusable scope. On later class-(b) dialogs, anchor the region between the
+confirmation and option list, refuse incomplete or truncated captures, and compare the rendered
+text exactly. Immediately re-read and compare that same text before the guarded `send-keys`;
+return to the blocked guard without sending if it changed.
 
 Without the answer helper, expand its call exactly as follows: capture
 `dialog_agent.state_change_seq` as `pre_key_seq`, run `herdr agent send-keys <worker> <keys>`,
@@ -357,7 +394,17 @@ name fails safely without sending input. `esc` is the canonical Escape name.
 | Class | Examples | Action |
 | --- | --- | --- |
 | (a) answer yourself | edit approval for a file inside the workspace; running tests, linters, or builds; a choice between options that `task.md` already settles; a clarifying question answerable from `task.md` | Apply the guarded `send-keys` path in the Supervision loop, then log the answer in `state.md` |
-| (b) escalate to the user | deleting or moving files; bulk rewrites; network access; writing outside the workspace; `git commit`, `push`, `reset`, or history rewriting; credentials or secrets; workspace trust prompts; anything not derivable from `task.md` | Report what is being asked directly to the user, attempt `herdr notification show "<title>" --body "<what is being asked>" --sound request` as a best-effort ping, read `.result.shown` from its response, then stop the round. If `shown` is `false`, tell the user that the ping was not shown. |
+| (b) escalate to the user | deleting or moving files; bulk rewrites; network access; writing outside the workspace; `git commit`, `push`, `reset`, or history rewriting; credentials or secrets; workspace trust prompts; anything not derivable from `task.md` | Check the active run's approval record first. On no match, report what is being asked directly to the user, attempt `herdr notification show "<title>" --body "<what is being asked>" --sound request` as a best-effort ping, read `.result.shown` from its response, then stop the round. If `shown` is `false`, tell the user that the ping was not shown. |
+
+A reusable class-(b) approval covers only a later dialog in the same run whose completely
+captured rendered command text matches the run record exactly. When escalating, tell the user
+that scope and distinguish it from a one-shot answer; record it only after the user grants the
+reusable scope. Always select the one-shot affirmative option when sending a granted answer;
+never select the worker's broader "don't ask again" option.
+
+The run record is a convenience, not proof that the user granted an approval. It lives inside
+the worker-writable workspace, so reuse assumes a non-adversarial worker exactly as the rest of
+the file-based protocol does; never treat a record entry as an independent authority boundary.
 
 A free-text question is not answerable with `send-keys`. Escalate it even when its answer is
 derivable from `task.md` and class (a) otherwise applies. Do not invent a text-entry mechanism.

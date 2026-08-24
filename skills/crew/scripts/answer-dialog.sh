@@ -1,17 +1,40 @@
 #!/bin/sh
 # Exit statuses:
 #   0  Keys were sent and state_change_seq advanced; sequence data is printed.
-#   2  Worker or keys were omitted.
-#   3  Guard refused: the worker was not blocked on a visible confirmation option list.
+#   2  Worker or keys were omitted, or the expected-command token was invalid.
+#   3  Guard refused: the worker was not blocked on the expected visible confirmation option list.
 #   4  Herdr state or pane output could not be read before sending keys.
 #   5  send-keys rejected the requested keys; the captured sequence is printed.
 #   6  state_change_seq did not advance before timeout; sequence data is printed.
 
 set -u
 
+expected_command_b64=
+if [ "${1-}" = --expected-command-b64 ]; then
+  if [ "$#" -lt 4 ]; then
+    printf '%s\n' 'usage: answer-dialog.sh [--expected-command-b64 <token>] <worker> <key>...' >&2
+    exit 2
+  fi
+  expected_command_b64=$2
+  shift 2
+fi
+
 if [ "$#" -lt 2 ]; then
-  printf '%s\n' 'usage: answer-dialog.sh <worker> <key>...' >&2
+  printf '%s\n' 'usage: answer-dialog.sh [--expected-command-b64 <token>] <worker> <key>...' >&2
   exit 2
+fi
+
+if [ -n "$expected_command_b64" ]; then
+  if ! python3 -c '
+import base64, sys
+try:
+    base64.b64decode(sys.argv[1].encode("ascii"), altchars=b"-_", validate=True).decode("utf-8")
+except (UnicodeError, ValueError):
+    raise SystemExit(1)
+' "$expected_command_b64"; then
+    printf '%s\n' 'invalid expected-command token' >&2
+    exit 2
+  fi
 fi
 
 worker=$1
@@ -57,6 +80,32 @@ option = re.compile(
 raise SystemExit(0 if confirmation and len(option.findall(text)) >= 2 else 1)
 '; then
   refuse 'no-visible-confirmation-option-list'
+fi
+
+if [ -n "$expected_command_b64" ]; then
+  approval_helper=$(dirname "$0")/approval.sh
+  if verification=$(
+    "$approval_helper" check "$worker" --expect-b64 "$expected_command_b64"
+  ); then
+    printf '%s\n' "$verification"
+  else
+    verification_status=$?
+    if [ -n "$verification" ]; then
+      printf '%s\n' "$verification"
+    fi
+    case "$verification_status" in
+      1)
+        refuse 'command-changed'
+        ;;
+      2)
+        printf '%s\n' 'invalid expected-command token' >&2
+        exit 2
+        ;;
+      *)
+        refuse 'command-revalidation-failed'
+        ;;
+    esac
+  fi
 fi
 
 second_json=$(herdr agent get "$worker") || exit 4
