@@ -1,7 +1,7 @@
 #!/bin/sh
 # Exit statuses:
 #   0  Keys were sent and state_change_seq advanced; sequence data is printed.
-#   2  Worker or keys were omitted, or the expected-command token was invalid.
+#   2  Worker or keys were omitted, or the expected approval token was invalid.
 #   3  Guard refused: the worker was not blocked on the expected visible confirmation option list.
 #   4  Herdr state or pane output could not be read before sending keys.
 #   5  send-keys rejected the requested keys; the captured sequence is printed.
@@ -9,13 +9,15 @@
 
 set -u
 
-expected_command_b64=
+expected_approval_b64=
+expected_approval_present=no
 if [ "${1-}" = --expected-command-b64 ]; then
   if [ "$#" -lt 4 ]; then
     printf '%s\n' 'usage: answer-dialog.sh [--expected-command-b64 <token>] <worker> <key>...' >&2
     exit 2
   fi
-  expected_command_b64=$2
+  expected_approval_b64=$2
+  expected_approval_present=yes
   shift 2
 fi
 
@@ -24,14 +26,18 @@ if [ "$#" -lt 2 ]; then
   exit 2
 fi
 
-if [ -n "$expected_command_b64" ]; then
+if [ "$expected_approval_present" = yes ]; then
+  if [ -z "$expected_approval_b64" ]; then
+    printf '%s\n' 'invalid expected-command token' >&2
+    exit 2
+  fi
   if ! python3 -c '
 import base64, sys
 try:
     base64.b64decode(sys.argv[1].encode("ascii"), altchars=b"-_", validate=True).decode("utf-8")
 except (UnicodeError, ValueError):
     raise SystemExit(1)
-' "$expected_command_b64"; then
+' "$expected_approval_b64"; then
     printf '%s\n' 'invalid expected-command token' >&2
     exit 2
   fi
@@ -82,10 +88,10 @@ raise SystemExit(0 if confirmation and len(option.findall(text)) >= 2 else 1)
   refuse 'no-visible-confirmation-option-list'
 fi
 
-if [ -n "$expected_command_b64" ]; then
+if [ "$expected_approval_present" = yes ]; then
   approval_helper=$(dirname "$0")/approval.sh
   if verification=$(
-    "$approval_helper" check "$worker" --expect-b64 "$expected_command_b64"
+    "$approval_helper" check "$worker" --expect-b64 "$expected_approval_b64"
   ); then
     printf '%s\n' "$verification"
   else
@@ -95,14 +101,14 @@ if [ -n "$expected_command_b64" ]; then
     fi
     case "$verification_status" in
       1)
-        refuse 'command-changed'
+        refuse 'approval-changed'
         ;;
       2)
         printf '%s\n' 'invalid expected-command token' >&2
         exit 2
         ;;
       *)
-        refuse 'command-revalidation-failed'
+        refuse 'approval-revalidation-failed'
         ;;
     esac
   fi

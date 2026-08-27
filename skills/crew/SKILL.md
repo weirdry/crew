@@ -113,7 +113,7 @@ the run directory:
 | --- | --- | --- |
 | `.crew/.current` | lead | Active run id; present from initialization through an open run, removed after terminal Finishing |
 | `.crew/worker.json` | `worker-start.sh` | Workspace partner identity and lead/partner pane ownership used by attach and guarded retirement |
-| `approvals.jsonl` | `approval.sh` | Run-scoped reusable approvals keyed by complete rendered command text |
+| `approvals.jsonl` | `approval.sh` | Run-scoped reusable approvals keyed by typed approval keys |
 | `task.md` | lead | Frozen scope; contents specified in "What `task.md` must contain" below |
 | `plan-check.md` | worker | Pre-implementation objections; required when the change touches shared machinery |
 | `report-<n>.md` | worker | What it did, what it checked, open questions |
@@ -371,7 +371,7 @@ repeat:
                                                    continue
                          guard refusal → return to the blocked guard without sending
              class (b) → approval.sh check <worker>
-                         match → read printed command_b64;
+                         match → read printed approval_kind and command_b64;
                                  answer-dialog.sh --expected-command-b64 <token> <worker> <keys>;
                                  handle advanced, failed, and refused results as above
                          no match or extraction failure → apply the class-(b) escalation and
@@ -396,36 +396,44 @@ chooses the keys before calling `answer-dialog.sh`. The helper only rechecks the
 blocked-plus-visible-option-list guard, captures and prints `pre_key_seq`, sends the supplied
 keys, and polls. It never decides whether a dialog may be answered.
 
-For a recorded class-(b) match, read `command_b64` from `approval.sh check` and pin it at the
-send boundary:
+`approval.sh` emits a typed approval key: a command key is its complete rendered command text;
+an edit key is operation `modify` plus its sorted, order-independent destination set. The edit
+extractor produces that key only for complete Codex dialogs whose fixed action markers positively
+identify content modifications and agree with the bounded `Destination:` metadata block.
+
+For a recorded class-(b) match, read `approval_kind` and `command_b64` from `approval.sh check`
+and pin the token at the send boundary:
 
 ```bash
 <crew-skill-dir>/scripts/answer-dialog.sh \
   --expected-command-b64 <command_b64> <worker> <keys>
 ```
 
-The answer helper calls the same extractor immediately before sending and refuses with exit 3
-when the complete rendered command changed or can no longer be extracted. `approval.sh` also
-refuses extraction unless it finds the confirmation line, a complete command region, and the
-option list; a truncation marker or a frame cut that removes any anchor is an extraction
-failure. Its exit status 0 means recorded or matched, 1 means no match, 2 means bad arguments,
-3 means invalid active-run ownership, 4 means state/frame/extraction failure, and 5 means a
-record failure.
+The retained `--expected-command-b64` flag and `command_b64` output name carry the extracted
+typed approval key of either kind. The answer helper calls the same extractor immediately before
+sending and refuses with exit 3 when the kind or key changed or can no longer be extracted.
+`approval.sh` refuses extraction unless it finds the confirmation line, the complete supported
+key region, and the option list; a truncation marker, ambiguous wrapped destination, unsupported
+edit operation, or frame cut that removes any anchor is an extraction failure. Its exit status 0
+means recorded or matched, 1 means no match, 2 means bad arguments, 3 means invalid active-run
+ownership, 4 means state/frame/extraction failure, and 5 means a record failure.
+Edit reuse requires the current action marker and its turn boundary to remain visible; when a long
+turn scrolls either out of the frame, exit 4 re-escalates by design.
 
-Live extraction is verified for Codex worker command dialogs. The structural Claude branch is
-not live-verified; for Claude or any other unverified worker kind, treat exit 4 as an unavailable
-reuse path and escalate every occurrence normally.
+Live extraction is verified for Codex worker command and content-modification dialogs. The
+structural Claude branch is not live-verified; for Claude or any other unverified worker kind,
+treat exit 4 as an unavailable reuse path and escalate every occurrence normally.
 
-After the user answers an escalation, capture the still-visible command again. For reusable
+After the user answers an escalation, capture the still-visible approval again. For reusable
 scope, run `approval.sh record <worker>` and use its printed `command_b64`; for a one-shot
 answer, use the `command_b64` printed with the no-match result. Pass that token to the pinned
 answer helper above. In both cases choose the worker UI's one-shot affirmative option.
 
-Without the approval helper, keep the complete rendered command region in the run record only
-after the user grants reusable scope. On later class-(b) dialogs, anchor the region between the
-confirmation and option list, refuse incomplete or truncated captures, and compare the rendered
-text exactly. Immediately re-read and compare that same text before the guarded `send-keys`;
-return to the blocked guard without sending if it changed.
+Without the approval helper, keep the same typed approval key in the run record only after the
+user grants reusable scope. On later class-(b) dialogs, anchor the key's source region to the
+dialog structure, refuse incomplete, truncated, ambiguous, or unsupported captures, and compare
+the kind and key exactly. Immediately re-read and compare that same typed key before the guarded
+`send-keys`; return to the blocked guard without sending if it changed.
 
 Without the answer helper, expand its call exactly as follows: capture
 `dialog_agent.state_change_seq` as `pre_key_seq`, run `herdr agent send-keys <worker> <keys>`,
@@ -444,8 +452,8 @@ name fails safely without sending input. `esc` is the canonical Escape name.
 | (b) escalate to the user | deleting or moving files; bulk rewrites; network access; writing outside the workspace; `git commit`, `push`, `reset`, or history rewriting; credentials or secrets; workspace trust prompts; anything not derivable from `task.md` | Check the active run's approval record first. On no match, report what is being asked directly to the user, attempt `herdr notification show "<title>" --body "<what is being asked>" --sound request` as a best-effort ping, read `.result.shown` from its response, then stop the round. If `shown` is `false`, tell the user that the ping was not shown. |
 
 A reusable class-(b) approval covers only a later dialog in the same run whose completely
-captured rendered command text matches the run record exactly. When escalating, tell the user
-that scope and distinguish it from a one-shot answer; record it only after the user grants the
+captured approval kind and key match the run record exactly. When escalating, tell the user that
+scope and distinguish it from a one-shot answer; record it only after the user grants the
 reusable scope. Always select the one-shot affirmative option when sending a granted answer;
 never select the worker's broader "don't ask again" option.
 

@@ -1,0 +1,10 @@
+{
+  "id": "answer-dialog-empty-expected-token",
+  "script": "answer-dialog.sh",
+  "args": ["--expected-command-b64", "", "crew-worker", "enter"],
+  "expect": {
+    "status": 2,
+    "stderr_contains": ["invalid expected-command token"],
+    "calls_exact": []
+  }
+}

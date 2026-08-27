@@ -1,10 +1,10 @@
 #!/bin/sh
 # Exit statuses:
-#   0  The rendered command was recorded, matched the run record, or matched --expect-b64.
-#   1  The rendered command was not recorded or did not match --expect-b64.
+#   0  The extracted approval was recorded, matched the run record, or matched --expect-b64.
+#   1  The extracted approval was not recorded or did not match --expect-b64.
 #   2  Wrong arguments or an invalid expected-command token.
 #   3  The active run or workspace partner ownership receipt was absent or invalid.
-#   4  Herdr state or a complete command confirmation could not be read.
+#   4  Herdr state or a complete supported approval confirmation could not be read.
 #   5  The approval record could not be read or appended safely.
 
 set -u
@@ -76,10 +76,10 @@ def is_rule(line: str) -> bool:
     return len(value) >= 10 and set(value) <= set("-─━╌═")
 
 
-def extract_rendered_command(frame: str) -> str:
+def extract_approval(frame: str) -> dict[str, object]:
     lines = frame.splitlines()
     if not lines:
-        fail("cannot extract command: empty visible frame", 4)
+        fail("cannot extract approval: empty visible frame", 4)
 
     confirmation = None
     option_start = None
@@ -93,9 +93,63 @@ def extract_rendered_command(frame: str) -> str:
             break
 
     if confirmation is None or option_start is None:
-        fail("cannot extract command: confirmation or option list is absent", 4)
+        fail("cannot extract approval: confirmation or option list is absent", 4)
 
     question = lines[confirmation].strip().lower()
+
+    if "would you like to make the following edits?" in question:
+        region_start, region_end = trim_region(lines, confirmation + 1, option_start)
+        destinations: list[str] = []
+        for line in lines[region_start:region_end]:
+            if not line.strip():
+                continue
+            destination = re.match(r"^\s*Destination:\s*(\S.*)$", line, re.IGNORECASE)
+            if destination:
+                value = destination.group(1).rstrip()
+                if "…" in value or "[truncated]" in value.lower() or "<truncated>" in value.lower():
+                    fail("cannot extract edit approval: destination contains a truncation marker", 4)
+                destinations.append(value)
+                continue
+            if re.match(r"^\s*(?:Description|Reason):(?:\s.*)?$", line, re.IGNORECASE):
+                continue
+            fail("cannot extract edit approval: metadata contains an unbounded continuation row", 4)
+
+        if not destinations:
+            fail("cannot extract edit approval: destination metadata is absent", 4)
+        destinations = sorted(set(destinations))
+
+        rules = [index for index in range(0, confirmation) if is_rule(lines[index])]
+        if not rules:
+            fail("cannot extract edit approval: operation boundary is absent", 4)
+        action_lines = lines[rules[-1] + 1 : confirmation]
+        operations_by_destination: dict[str, str] = {}
+        for line in action_lines:
+            action = re.match(
+                r"^\s*•\s+([A-Za-z]+)\s+(.+?)\s+\([+-]\d+\s+[+-]\d+\)\s*$",
+                line,
+            )
+            if action:
+                operations_by_destination[action.group(2).rstrip()] = action.group(1).lower()
+                continue
+            if re.match(
+                r"^\s*•\s+(?:Added|Edited|Deleted|Moved|Renamed|Created|Removed|Updated)\b",
+                line,
+                re.IGNORECASE,
+            ):
+                fail("cannot extract edit approval: operation marker is incomplete", 4)
+
+        if not operations_by_destination:
+            fail("cannot extract edit approval: operation marker is absent", 4)
+        if any(destination not in operations_by_destination for destination in destinations):
+            fail("cannot extract edit approval: destination operation marker is absent", 4)
+        if any(operations_by_destination[destination] != "edited" for destination in destinations):
+            fail("cannot extract edit approval: operation is not a content modification", 4)
+
+        return {
+            "kind": "edit",
+            "key": {"destinations": destinations, "operation": "modify"},
+        }
+
     command_start = None
     command_end = None
 
@@ -119,11 +173,11 @@ def extract_rendered_command(frame: str) -> str:
                 command_start, command_end = trim_region(lines, headers[-1] + 1, region_end)
 
     if command_start is None or command_end is None or command_start >= command_end:
-        fail("cannot extract command: complete command region is absent", 4)
+        fail("cannot extract approval: complete command region is absent", 4)
 
     command_lines = lines[command_start:command_end]
     if any("…" in line or "[truncated]" in line.lower() or "<truncated>" in line.lower() for line in command_lines):
-        fail("cannot extract command: command region contains a truncation marker", 4)
+        fail("cannot extract approval: command region contains a truncation marker", 4)
 
     if command_lines[0].lstrip().startswith("$ "):
         prefix = len(command_lines[0]) - len(command_lines[0].lstrip())
@@ -131,8 +185,27 @@ def extract_rendered_command(frame: str) -> str:
 
     rendered = "\n".join(line.rstrip() for line in command_lines)
     if not rendered:
-        fail("cannot extract command: command region is empty", 4)
-    return rendered
+        fail("cannot extract approval: command region is empty", 4)
+    return {"kind": "command", "key": rendered}
+
+
+def valid_approval(value: object) -> bool:
+    if not isinstance(value, dict) or set(value) != {"kind", "key"}:
+        return False
+    kind = value.get("kind")
+    key = value.get("key")
+    if kind == "command":
+        return isinstance(key, str) and bool(key)
+    if kind != "edit" or not isinstance(key, dict) or set(key) != {"destinations", "operation"}:
+        return False
+    destinations = key.get("destinations")
+    return (
+        key.get("operation") == "modify"
+        and isinstance(destinations, list)
+        and bool(destinations)
+        and all(isinstance(destination, str) and bool(destination) for destination in destinations)
+        and destinations == sorted(set(destinations))
+    )
 
 
 verb = sys.argv[1]
@@ -141,8 +214,13 @@ expected_token = sys.argv[4] if len(sys.argv) == 5 else None
 expected = None
 if expected_token is not None:
     try:
-        expected = base64.b64decode(expected_token.encode("ascii"), altchars=b"-_", validate=True).decode("utf-8")
-    except (UnicodeError, ValueError) as error:
+        expected_text = base64.b64decode(
+            expected_token.encode("ascii"), altchars=b"-_", validate=True
+        ).decode("utf-8")
+        expected = json.loads(expected_text)
+        if not valid_approval(expected):
+            raise ValueError("token does not contain a typed approval key")
+    except (UnicodeError, ValueError, json.JSONDecodeError) as error:
         fail(f"invalid expected-command token: {error}", 2)
 
 cwd = Path.cwd()
@@ -186,7 +264,7 @@ try:
 except (json.JSONDecodeError, KeyError, TypeError) as error:
     fail(f"invalid worker state: {error}", 4)
 if agent.get("pane_id") != receipt["worker_pane_id"] or agent.get("agent_status") != "blocked":
-    fail("cannot extract command: workspace partner is not blocked in its recorded pane", 4)
+    fail("cannot extract approval: workspace partner is not blocked in its recorded pane", 4)
 
 try:
     read_result = subprocess.run(
@@ -200,15 +278,17 @@ except (OSError, UnicodeError) as error:
 if read_result.returncode != 0:
     fail("cannot read visible frame", 4)
 
-rendered = extract_rendered_command(read_result.stdout)
-encoded = base64.urlsafe_b64encode(rendered.encode("utf-8")).decode("ascii")
-digest = hashlib.sha256(rendered.encode("utf-8")).hexdigest()
+approval = extract_approval(read_result.stdout)
+canonical = json.dumps(approval, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+encoded = base64.urlsafe_b64encode(canonical.encode("utf-8")).decode("ascii")
+digest = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
+print(f"approval_kind={approval['kind']}")
 print(f"command_sha256={digest}")
 print(f"command_b64={encoded}")
 
 if expected_token is not None:
-    if rendered == expected:
+    if approval == expected:
         print("outcome=expected-match")
         raise SystemExit(0)
     print("outcome=expected-mismatch")
@@ -218,7 +298,7 @@ record_path = run_dir / "approvals.jsonl"
 relative_record = record_path.relative_to(cwd)
 
 if verb == "record":
-    entry = {"rendered_command": rendered, "sha256": digest}
+    entry = {"kind": approval["kind"], "key": approval["key"], "sha256": digest}
     try:
         with record_path.open("a", encoding="utf-8") as handle:
             handle.write(json.dumps(entry, ensure_ascii=False, sort_keys=True) + "\n")
@@ -235,14 +315,16 @@ if record_path.exists():
     try:
         for number, line in enumerate(record_path.read_text(encoding="utf-8").splitlines(), 1):
             entry = json.loads(line)
-            if not isinstance(entry, dict) or not isinstance(entry.get("rendered_command"), str):
+            if not isinstance(entry, dict) or not valid_approval(
+                {"kind": entry.get("kind"), "key": entry.get("key")}
+            ):
                 fail(f"invalid approval record entry at line {number}", 5)
             entries.append(entry)
     except (OSError, UnicodeError, json.JSONDecodeError) as error:
         fail(f"cannot read approval record: {error}", 5)
 
 print(f"approval_record={relative_record}")
-if any(entry["rendered_command"] == rendered for entry in entries):
+if any(entry["kind"] == approval["kind"] and entry["key"] == approval["key"] for entry in entries):
     print("outcome=match")
     raise SystemExit(0)
 print("outcome=no-match")

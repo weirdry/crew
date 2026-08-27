@@ -2,7 +2,7 @@
   "id": "approval-wrapped-command",
   "script": "approval.sh",
   "args": ["check", "crew-worker", "--expect-b64", "{command_b64}"],
-  "command": "printf one\n  continued-row",
+  "command": "{\"key\":\"printf one\\n  continued-row\",\"kind\":\"command\"}",
   "setup": {
     "dirs": [".crew/run-1"],
     "files": {

@@ -2,7 +2,7 @@
   "id": "approval-expect-mismatch",
   "script": "approval.sh",
   "args": ["check", "crew-worker", "--expect-b64", "{command_b64}"],
-  "command": "echo expected",
+  "command": "{\"key\":\"echo expected\",\"kind\":\"command\"}",
   "setup": {
     "dirs": [".crew/run-1"],
     "files": {".crew/.current": "run-1\n", ".crew/worker.json": {"json": {"version": 1, "worker_pane_id": "worker-1", "worker_name": "crew-worker"}}}

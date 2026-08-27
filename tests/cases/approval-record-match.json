@@ -7,7 +7,7 @@
     "files": {
       ".crew/.current": "run-1\n",
       ".crew/worker.json": {"json": {"version": 1, "worker_pane_id": "worker-1", "worker_name": "crew-worker"}},
-      ".crew/run-1/approvals.jsonl": "{\"rendered_command\": \"echo one\"}\n"
+      ".crew/run-1/approvals.jsonl": "{\"key\": \"echo one\", \"kind\": \"command\"}\n"
     }
   },
   "herdr": [

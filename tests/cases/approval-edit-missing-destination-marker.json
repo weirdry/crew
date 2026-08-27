@@ -1,0 +1,22 @@
+{
+  "id": "approval-edit-missing-destination-marker",
+  "script": "approval.sh",
+  "args": ["check", "crew-worker"],
+  "setup": {
+    "dirs": [".crew/run-1"],
+    "files": {
+      ".crew/.current": "run-1\n",
+      ".crew/worker.json": {"json": {"version": 1, "worker_pane_id": "worker-1", "worker_name": "crew-worker"}},
+      ".crew/run-1/approvals.jsonl": "{\"key\": {\"destinations\": [\"/private/tmp/edit-a.txt\", \"/private/tmp/edit-b.txt\"], \"operation\": \"modify\"}, \"kind\": \"edit\"}\n"
+    }
+  },
+  "herdr": [
+    {"argv": ["agent", "get", "crew-worker"], "results": [{"agent": {"pane_id": "worker-1", "agent_status": "blocked"}}]},
+    {"argv": ["agent", "read", "crew-worker", "--source", "visible", "--lines", "200", "--format", "text"], "results": [{"stdout": "────────────────────────\n• Edited /private/tmp/edit-a.txt (+1 -1)\n\nWould you like to make the following edits?\nDescription: Apply proposed file edits\nDestination: /private/tmp/edit-a.txt\nDestination: /private/tmp/edit-b.txt\n\n1. Yes\n2. No\n"}]}
+  ],
+  "expect": {
+    "status": 4,
+    "stderr_contains": ["destination operation marker is absent"],
+    "calls_exact": [["agent", "get", "crew-worker"], ["agent", "read", "crew-worker", "--source", "visible", "--lines", "200", "--format", "text"]]
+  }
+}

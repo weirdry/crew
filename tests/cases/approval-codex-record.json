@@ -2,7 +2,7 @@
   "id": "approval-codex-record",
   "script": "approval.sh",
   "args": ["record", "crew-worker"],
-  "command": "echo one",
+  "command": "{\"key\":\"echo one\",\"kind\":\"command\"}",
   "setup": {
     "dirs": [".crew/run-1"],
     "files": {
@@ -16,8 +16,8 @@
   ],
   "expect": {
     "status": 0,
-    "stdout_contains": ["command_b64={command_b64}", "outcome=recorded"],
+    "stdout_contains": ["approval_kind=command", "command_b64={command_b64}", "outcome=recorded"],
     "calls_exact": [["agent", "get", "crew-worker"], ["agent", "read", "crew-worker", "--source", "visible", "--lines", "200", "--format", "text"]],
-    "json_files": {".crew/run-1/approvals.jsonl": {"rendered_command": "echo one", "sha256": "{command_sha256}"}}
+    "json_files": {".crew/run-1/approvals.jsonl": {"key": "echo one", "kind": "command", "sha256": "{command_sha256}"}}
   }
 }

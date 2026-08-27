@@ -2,7 +2,7 @@
   "id": "approval-claude-expect-match",
   "script": "approval.sh",
   "args": ["check", "crew-worker", "--expect-b64", "{command_b64}"],
-  "command": "echo claude",
+  "command": "{\"key\":\"echo claude\",\"kind\":\"command\"}",
   "frame_evidence": "synthetic; the Claude layout branch is not verified against a live Claude permission dialog",
   "setup": {
     "dirs": [".crew/run-1"],
@@ -17,7 +17,7 @@
   ],
   "expect": {
     "status": 0,
-    "stdout_contains": ["command_b64={command_b64}", "outcome=expected-match"],
+    "stdout_contains": ["approval_kind=command", "command_b64={command_b64}", "outcome=expected-match"],
     "calls_exact": [["agent", "get", "crew-worker"], ["agent", "read", "crew-worker", "--source", "visible", "--lines", "200", "--format", "text"]]
   }
 }

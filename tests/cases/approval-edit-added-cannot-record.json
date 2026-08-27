@@ -1,0 +1,21 @@
+{
+  "id": "approval-edit-added-cannot-record",
+  "script": "approval.sh",
+  "args": ["record", "crew-worker"],
+  "setup": {
+    "dirs": [".crew/run-1"],
+    "files": {
+      ".crew/.current": "run-1\n",
+      ".crew/worker.json": {"json": {"version": 1, "worker_pane_id": "worker-1", "worker_name": "crew-worker"}}
+    }
+  },
+  "herdr": [
+    {"argv": ["agent", "get", "crew-worker"], "results": [{"agent": {"pane_id": "worker-1", "agent_status": "blocked"}}]},
+    {"argv": ["agent", "read", "crew-worker", "--source", "visible", "--lines", "200", "--format", "text"], "results": [{"stdout": "────────────────────────\n• Added /private/tmp/edit-a.txt (+1 -0)\n    1 +one\n\nWould you like to make the following edits?\nDescription: Apply proposed file edits\nDestination: /private/tmp/edit-a.txt\n\n1. Yes\n2. No\n"}]}
+  ],
+  "expect": {
+    "status": 4,
+    "stderr_contains": ["operation is not a content modification"],
+    "calls_exact": [["agent", "get", "crew-worker"], ["agent", "read", "crew-worker", "--source", "visible", "--lines", "200", "--format", "text"]]
+  }
+}

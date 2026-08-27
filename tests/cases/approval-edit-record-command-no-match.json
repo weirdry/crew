@@ -1,5 +1,5 @@
 {
-  "id": "approval-record-no-match",
+  "id": "approval-edit-record-command-no-match",
   "script": "approval.sh",
   "args": ["check", "crew-worker"],
   "setup": {
@@ -7,7 +7,7 @@
     "files": {
       ".crew/.current": "run-1\n",
       ".crew/worker.json": {"json": {"version": 1, "worker_pane_id": "worker-1", "worker_name": "crew-worker"}},
-      ".crew/run-1/approvals.jsonl": "{\"key\": \"echo other\", \"kind\": \"command\"}\n"
+      ".crew/run-1/approvals.jsonl": "{\"key\": {\"destinations\": [\"echo one\"], \"operation\": \"modify\"}, \"kind\": \"edit\"}\n"
     }
   },
   "herdr": [
@@ -16,7 +16,7 @@
   ],
   "expect": {
     "status": 1,
-    "stdout_contains": ["outcome=no-match"],
+    "stdout_contains": ["approval_kind=command", "outcome=no-match"],
     "calls_exact": [["agent", "get", "crew-worker"], ["agent", "read", "crew-worker", "--source", "visible", "--lines", "200", "--format", "text"]]
   }
 }

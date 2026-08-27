@@ -2,7 +2,7 @@
   "id": "answer-dialog-pinned-mismatch",
   "script": "answer-dialog.sh",
   "args": ["--expected-command-b64", "{command_b64}", "crew-worker", "enter"],
-  "command": "echo expected",
+  "command": "{\"key\":\"echo expected\",\"kind\":\"command\"}",
   "setup": {
     "dirs": [".crew/run-1"],
     "files": {".crew/.current": "run-1\n", ".crew/worker.json": {"json": {"version": 1, "worker_pane_id": "worker-1", "worker_name": "crew-worker"}}}
@@ -17,7 +17,7 @@
   ],
   "expect": {
     "status": 3,
-    "stdout_contains": ["outcome=expected-mismatch", "reason=command-changed"],
+    "stdout_contains": ["outcome=expected-mismatch", "reason=approval-changed"],
     "calls_exact": [
       ["agent", "get", "crew-worker"], ["agent", "read", "crew-worker", "--source", "visible", "--lines", "120", "--format", "text"],
       ["agent", "get", "crew-worker"], ["agent", "read", "crew-worker", "--source", "visible", "--lines", "200", "--format", "text"]
