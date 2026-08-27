@@ -1,0 +1,11 @@
+{
+  "id": "answer-dialog-invalid-token",
+  "script": "answer-dialog.sh",
+  "args": ["--expected-command-b64", "%%%", "crew-worker", "enter"],
+  "expect": {
+    "status": 2,
+    "stderr_contains": ["invalid expected-command token"],
+    "calls_exact": [],
+    "calls_absent_prefix": [["agent", "send-keys"]]
+  }
+}

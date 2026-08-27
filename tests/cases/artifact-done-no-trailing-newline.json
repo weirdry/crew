@@ -1,0 +1,7 @@
+{
+  "id": "artifact-done-no-trailing-newline",
+  "script": "artifact-done.sh",
+  "args": ["report.md"],
+  "setup": {"files": {"report.md": "evidence\nSTATUS: done"}},
+  "expect": {"status": 0, "calls_exact": []}
+}

@@ -1,0 +1,15 @@
+{
+  "id": "answer-dialog-unpinned-guard-refusal",
+  "script": "answer-dialog.sh",
+  "args": ["crew-worker", "enter"],
+  "herdr": [
+    {"argv": ["agent", "get", "crew-worker"], "results": [{"agent": {"agent_status": "blocked", "state_change_seq": 10}}]},
+    {"argv": ["agent", "read", "crew-worker", "--source", "visible", "--lines", "120", "--format", "text"], "results": [{"stdout": "ordinary output\nwithout a confirmation\n"}]}
+  ],
+  "expect": {
+    "status": 3,
+    "stdout_contains": ["outcome=refused", "reason=no-visible-confirmation-option-list"],
+    "calls_exact": [["agent", "get", "crew-worker"], ["agent", "read", "crew-worker", "--source", "visible", "--lines", "120", "--format", "text"]],
+    "calls_absent_prefix": [["agent", "send-keys"]]
+  }
+}

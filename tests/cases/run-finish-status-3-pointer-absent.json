@@ -1,0 +1,6 @@
+{
+  "id": "run-finish-status-3-pointer-absent",
+  "script": "run-finish.sh",
+  "args": ["run-1"],
+  "expect": {"status": 3, "stderr_contains": ["cannot read"], "calls_exact": []}
+}

@@ -1,0 +1,16 @@
+{
+  "id": "worker-start-same-kind-absent",
+  "script": "worker-start.sh",
+  "args": ["codex"],
+  "env": {"HERDR_ENV": "1", "HERDR_PANE_ID": "lead-1"},
+  "setup": {"dirs": [".crew/run-1"], "files": {".crew/.current": "run-1\n"}},
+  "herdr": [
+    {"argv": ["agent", "list"], "results": [{"agents": [{"pane_id": "lead-1", "agent": "codex"}]}]},
+    {"argv": ["agent", "get", "{derived_name}"], "results": [{"error": "agent_not_found"}]}
+  ],
+  "expect": {
+    "status": 12,
+    "stderr_contains": ["outcome=refused:same-kind", "requested_partner_kind=codex"],
+    "calls_exact": [["agent", "list"], ["agent", "get", "{derived_name}"]]
+  }
+}

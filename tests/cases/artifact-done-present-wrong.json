@@ -1,0 +1,7 @@
+{
+  "id": "artifact-done-present-wrong",
+  "script": "artifact-done.sh",
+  "args": ["report.md"],
+  "setup": {"files": {"report.md": "evidence\nSTATUS: blocked\n"}},
+  "expect": {"status": 1, "calls_exact": []}
+}

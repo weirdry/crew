@@ -1,0 +1,12 @@
+{
+  "id": "run-finish-status-4-mismatch",
+  "script": "run-finish.sh",
+  "args": ["run-1"],
+  "setup": {"dirs": [".crew/other"], "files": {".crew/.current": "other\n"}},
+  "expect": {
+    "status": 4,
+    "stderr_contains": ["requested_run=run-1", "current_run=other", "outcome=refused:run-id-mismatch"],
+    "calls_exact": [],
+    "files": {".crew/.current": "other\n"}
+  }
+}

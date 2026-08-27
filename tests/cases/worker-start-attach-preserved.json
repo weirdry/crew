@@ -1,0 +1,23 @@
+{
+  "id": "worker-start-attach-preserved",
+  "script": "worker-start.sh",
+  "args": ["codex"],
+  "env": {"HERDR_ENV": "1", "HERDR_PANE_ID": "lead-1"},
+  "setup": {
+    "dirs": [".crew/run-1"],
+    "files": {
+      ".crew/.current": "run-1\n",
+      ".crew/worker.json": {"json": {"version": 1, "lead_pane_id": "lead-1", "worker_pane_id": "worker-1", "worker_name": "crew-worker", "worker_kind": "codex"}}
+    }
+  },
+  "herdr": [
+    {"argv": ["agent", "list"], "results": [{"agents": [{"pane_id": "lead-1", "agent": "claude"}]}]},
+    {"argv": ["agent", "get", "crew-worker"], "results": [{"agent": {"name": "crew-worker", "pane_id": "worker-1", "agent": "codex"}}]}
+  ],
+  "expect": {
+    "status": 0,
+    "stdout_contains": ["outcome=attached", "ownership=preserved", "pane_id=worker-1"],
+    "calls_exact": [["agent", "list"], ["agent", "get", "crew-worker"]],
+    "json_files": {".crew/worker.json": {"version": 1, "lead_pane_id": "lead-1", "worker_pane_id": "worker-1", "worker_name": "crew-worker", "worker_kind": "codex"}}
+  }
+}

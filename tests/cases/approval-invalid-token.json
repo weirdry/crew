@@ -1,0 +1,6 @@
+{
+  "id": "approval-invalid-token",
+  "script": "approval.sh",
+  "args": ["check", "crew-worker", "--expect-b64", "%%%"],
+  "expect": {"status": 2, "stderr_contains": ["invalid expected-command token"], "calls_exact": []}
+}

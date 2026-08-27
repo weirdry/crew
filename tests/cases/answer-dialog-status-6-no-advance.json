@@ -1,0 +1,24 @@
+{
+  "id": "answer-dialog-status-6-no-advance",
+  "script": "answer-dialog.sh",
+  "args": ["crew-worker", "enter"],
+  "timeout": 12,
+  "herdr": [
+    {"argv": ["agent", "get", "crew-worker"], "results": [
+      {"agent": {"agent_status": "blocked", "state_change_seq": 10}},
+      {"agent": {"agent_status": "blocked", "state_change_seq": 10}},
+      {"agent": {"agent_status": "blocked", "state_change_seq": 10}}
+    ], "repeat_last": true},
+    {"argv": ["agent", "read", "crew-worker", "--source", "visible", "--lines", "120", "--format", "text"], "results": [{"stdout": "Do you want to continue?\n1. Yes\n2. No\n"}]},
+    {"argv": ["agent", "send-keys", "crew-worker", "enter"], "results": [{}]}
+  ],
+  "expect": {
+    "status": 6,
+    "stdout_contains": ["pre_key_seq=10", "post_key_seq=10", "outcome=timeout"],
+    "calls_contains": [
+      ["agent", "read", "crew-worker", "--source", "visible", "--lines", "120", "--format", "text"],
+      ["agent", "send-keys", "crew-worker", "enter"]
+    ],
+    "call_counts": [{"argv": ["agent", "get", "crew-worker"], "min": 3}]
+  }
+}

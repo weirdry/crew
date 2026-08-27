@@ -1,0 +1,6 @@
+{
+  "id": "artifact-done-absent",
+  "script": "artifact-done.sh",
+  "args": ["missing.md"],
+  "expect": {"status": 1, "calls_exact": []}
+}

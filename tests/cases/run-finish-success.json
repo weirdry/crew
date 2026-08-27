@@ -1,0 +1,12 @@
+{
+  "id": "run-finish-success",
+  "script": "run-finish.sh",
+  "args": ["run-1"],
+  "setup": {"dirs": [".crew/run-1"], "files": {".crew/.current": "run-1\n"}},
+  "expect": {
+    "status": 0,
+    "stdout_contains": ["finished_run=run-1", "removed_pointer=.crew/.current"],
+    "calls_exact": [],
+    "absent": [".crew/.current"]
+  }
+}

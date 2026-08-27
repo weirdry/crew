@@ -1,0 +1,7 @@
+{
+  "id": "worker-start-status-3-no-herdr-context",
+  "script": "worker-start.sh",
+  "args": ["codex"],
+  "env": {"HERDR_ENV": "0", "HERDR_PANE_ID": ""},
+  "expect": {"status": 3, "stderr_contains": ["must run inside a Herdr pane"], "calls_exact": []}
+}

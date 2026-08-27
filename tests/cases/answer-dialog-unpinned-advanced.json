@@ -1,0 +1,22 @@
+{
+  "id": "answer-dialog-unpinned-advanced",
+  "script": "answer-dialog.sh",
+  "args": ["crew-worker", "enter"],
+  "herdr": [
+    {"argv": ["agent", "get", "crew-worker"], "results": [
+      {"agent": {"agent_status": "blocked", "state_change_seq": 10}},
+      {"agent": {"agent_status": "blocked", "state_change_seq": 10}},
+      {"agent": {"agent_status": "working", "state_change_seq": 11}}
+    ]},
+    {"argv": ["agent", "read", "crew-worker", "--source", "visible", "--lines", "120", "--format", "text"], "results": [{"stdout": "Do you want to continue?\n1. Yes\n2. No\n"}]},
+    {"argv": ["agent", "send-keys", "crew-worker", "enter"], "results": [{}]}
+  ],
+  "expect": {
+    "status": 0,
+    "stdout_contains": ["pre_key_seq=10", "post_key_seq=11", "outcome=advanced"],
+    "calls_exact": [
+      ["agent", "get", "crew-worker"], ["agent", "read", "crew-worker", "--source", "visible", "--lines", "120", "--format", "text"],
+      ["agent", "get", "crew-worker"], ["agent", "send-keys", "crew-worker", "enter"], ["agent", "get", "crew-worker"]
+    ]
+  }
+}

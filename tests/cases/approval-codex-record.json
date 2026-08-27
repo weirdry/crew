@@ -1,0 +1,23 @@
+{
+  "id": "approval-codex-record",
+  "script": "approval.sh",
+  "args": ["record", "crew-worker"],
+  "command": "echo one",
+  "setup": {
+    "dirs": [".crew/run-1"],
+    "files": {
+      ".crew/.current": "run-1\n",
+      ".crew/worker.json": {"json": {"version": 1, "lead_pane_id": "lead-1", "worker_pane_id": "worker-1", "worker_name": "crew-worker", "worker_kind": "codex"}}
+    }
+  },
+  "herdr": [
+    {"argv": ["agent", "get", "crew-worker"], "results": [{"agent": {"pane_id": "worker-1", "agent_status": "blocked"}}]},
+    {"argv": ["agent", "read", "crew-worker", "--source", "visible", "--lines", "200", "--format", "text"], "results": [{"stdout": "Would you like to run the following command?\n\n$ echo one\n\n› 1. Yes\n  2. No\n"}]}
+  ],
+  "expect": {
+    "status": 0,
+    "stdout_contains": ["command_b64={command_b64}", "outcome=recorded"],
+    "calls_exact": [["agent", "get", "crew-worker"], ["agent", "read", "crew-worker", "--source", "visible", "--lines", "200", "--format", "text"]],
+    "json_files": {".crew/run-1/approvals.jsonl": {"rendered_command": "echo one", "sha256": "{command_sha256}"}}
+  }
+}

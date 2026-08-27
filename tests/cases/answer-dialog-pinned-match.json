@@ -1,0 +1,30 @@
+{
+  "id": "answer-dialog-pinned-match",
+  "script": "answer-dialog.sh",
+  "args": ["--expected-command-b64", "{command_b64}", "crew-worker", "enter"],
+  "command": "echo one",
+  "setup": {
+    "dirs": [".crew/run-1"],
+    "files": {".crew/.current": "run-1\n", ".crew/worker.json": {"json": {"version": 1, "worker_pane_id": "worker-1", "worker_name": "crew-worker"}}}
+  },
+  "herdr": [
+    {"argv": ["agent", "get", "crew-worker"], "results": [
+      {"agent": {"pane_id": "worker-1", "agent_status": "blocked", "state_change_seq": 10}},
+      {"agent": {"pane_id": "worker-1", "agent_status": "blocked", "state_change_seq": 10}},
+      {"agent": {"pane_id": "worker-1", "agent_status": "blocked", "state_change_seq": 10}},
+      {"agent": {"pane_id": "worker-1", "agent_status": "working", "state_change_seq": 11}}
+    ]},
+    {"argv": ["agent", "read", "crew-worker", "--source", "visible", "--lines", "120", "--format", "text"], "results": [{"stdout": "Would you like to run the following command?\n\n$ echo one\n\n1. Yes\n2. No\n"}]},
+    {"argv": ["agent", "read", "crew-worker", "--source", "visible", "--lines", "200", "--format", "text"], "results": [{"stdout": "Would you like to run the following command?\n\n$ echo one\n\n1. Yes\n2. No\n"}]},
+    {"argv": ["agent", "send-keys", "crew-worker", "enter"], "results": [{}]}
+  ],
+  "expect": {
+    "status": 0,
+    "stdout_contains": ["outcome=expected-match", "outcome=advanced"],
+    "calls_exact": [
+      ["agent", "get", "crew-worker"], ["agent", "read", "crew-worker", "--source", "visible", "--lines", "120", "--format", "text"],
+      ["agent", "get", "crew-worker"], ["agent", "read", "crew-worker", "--source", "visible", "--lines", "200", "--format", "text"],
+      ["agent", "get", "crew-worker"], ["agent", "send-keys", "crew-worker", "enter"], ["agent", "get", "crew-worker"]
+    ]
+  }
+}

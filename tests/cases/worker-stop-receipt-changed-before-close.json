@@ -1,0 +1,21 @@
+{
+  "id": "worker-stop-receipt-changed-before-close",
+  "script": "worker-stop.sh",
+  "env": {"HERDR_ENV": "1", "HERDR_PANE_ID": "lead-1"},
+  "setup": {"files": {".crew/worker.json": {"json": {"version": 1, "lead_pane_id": "lead-1", "worker_pane_id": "worker-1", "worker_name": "crew-worker", "worker_kind": "codex"}}}},
+  "herdr": [
+    {
+      "argv": ["agent", "get", "crew-worker"],
+      "results": [{
+        "agent": {"pane_id": "worker-1", "agent": "codex"},
+        "effects": [{"action": "write", "path": ".crew/worker.json", "content_json": {"version": 1, "lead_pane_id": "lead-1", "worker_pane_id": "worker-2", "worker_name": "crew-worker", "worker_kind": "codex"}}]
+      }]
+    }
+  ],
+  "expect": {
+    "status": 5,
+    "stdout_contains": ["outcome=refused:receipt-changed-before-close"],
+    "calls_exact": [["agent", "get", "crew-worker"]],
+    "calls_absent_prefix": [["pane", "close"]]
+  }
+}

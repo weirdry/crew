@@ -1,0 +1,6 @@
+{
+  "id": "worker-stop-status-4-receipt-absent",
+  "script": "worker-stop.sh",
+  "env": {"HERDR_ENV": "1", "HERDR_PANE_ID": "lead-1"},
+  "expect": {"status": 4, "calls_exact": [], "calls_absent_prefix": [["pane", "close"]]}
+}

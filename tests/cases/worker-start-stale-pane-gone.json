@@ -1,0 +1,35 @@
+{
+  "id": "worker-start-stale-pane-gone",
+  "script": "worker-start.sh",
+  "args": ["codex"],
+  "env": {"HERDR_ENV": "1", "HERDR_PANE_ID": "lead-1"},
+  "setup": {
+    "dirs": [".crew/run-1"],
+    "files": {
+      ".crew/.current": "run-1\n",
+      ".crew/worker.json": {"json": {"version": 1, "lead_pane_id": "lead-1", "worker_pane_id": "worker-old", "worker_name": "crew-worker", "worker_kind": "codex"}}
+    }
+  },
+  "herdr": [
+    {"argv": ["agent", "list"], "results": [{"agents": [{"pane_id": "lead-1", "agent": "claude"}]}]},
+    {"argv": ["agent", "get", "crew-worker"], "results": [{"error": "agent_not_found"}]},
+    {"argv": ["pane", "get", "worker-old"], "results": [{"error": "pane_not_found"}]},
+    {"argv": ["pane", "layout", "--pane", "lead-1"], "results": [{"layout": {"panes": [{"pane_id": "lead-1", "rect": {"width": 40, "height": 80}}]}}]},
+    {"argv": ["pane", "split", "--pane", "lead-1", "--direction", "down", "--cwd", "{cwd}", "--no-focus"], "results": [{"pane": {"pane_id": "split-1"}}]},
+    {"argv": ["pane", "wait-output", "split-1", "--regex", "[#$%>❯] ?$", "--source", "detection", "--lines", "5", "--timeout", "60000"], "results": [{}]},
+    {"argv": ["agent", "start", "crew-worker", "--kind", "codex", "--pane", "split-1", "--timeout", "60000"], "results": [{}]},
+    {"argv": ["pane", "wait-output", "split-1", "--regex", "Ask Codex", "--source", "visible", "--timeout", "60000"], "results": [{}]}
+  ],
+  "expect": {
+    "status": 0,
+    "stdout_contains": ["pane_source=split", "receipt_action=replaced-stale"],
+    "calls_exact": [
+      ["agent", "list"], ["agent", "get", "crew-worker"], ["pane", "get", "worker-old"], ["pane", "layout", "--pane", "lead-1"],
+      ["pane", "split", "--pane", "lead-1", "--direction", "down", "--cwd", "{cwd}", "--no-focus"],
+      ["pane", "wait-output", "split-1", "--regex", "[#$%>❯] ?$", "--source", "detection", "--lines", "5", "--timeout", "60000"],
+      ["agent", "start", "crew-worker", "--kind", "codex", "--pane", "split-1", "--timeout", "60000"],
+      ["pane", "wait-output", "split-1", "--regex", "Ask Codex", "--source", "visible", "--timeout", "60000"]
+    ],
+    "json_files": {".crew/worker.json": {"version": 1, "lead_pane_id": "lead-1", "worker_pane_id": "split-1", "worker_name": "crew-worker", "worker_kind": "codex"}}
+  }
+}

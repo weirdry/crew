@@ -1,0 +1,6 @@
+{
+  "id": "worker-start-status-2-invalid-kind",
+  "script": "worker-start.sh",
+  "args": ["Bad Kind"],
+  "expect": {"status": 2, "stderr_contains": ["invalid_worker_kind=Bad Kind"], "calls_exact": []}
+}

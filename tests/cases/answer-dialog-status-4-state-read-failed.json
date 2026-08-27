@@ -1,0 +1,11 @@
+{
+  "id": "answer-dialog-status-4-state-read-failed",
+  "script": "answer-dialog.sh",
+  "args": ["crew-worker", "enter"],
+  "herdr": [{"argv": ["agent", "get", "crew-worker"], "results": [{"status": 1}]}],
+  "expect": {
+    "status": 4,
+    "calls_exact": [["agent", "get", "crew-worker"]],
+    "calls_absent_prefix": [["agent", "send-keys"]]
+  }
+}

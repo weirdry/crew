@@ -1,0 +1,90 @@
+#!/usr/bin/env python3
+
+from __future__ import annotations
+
+from pathlib import Path
+import json
+import os
+import sys
+
+
+def stop(message: str, status: int = 97) -> None:
+    print(message, file=sys.stderr)
+    raise SystemExit(status)
+
+
+def content(spec: dict[str, object]) -> str:
+    if "content" in spec:
+        value = spec["content"]
+        if not isinstance(value, str):
+            stop("stub effect content must be a string")
+        return value
+    if "content_json" in spec:
+        return json.dumps(spec["content_json"], sort_keys=True) + "\n"
+    stop("stub write effect has no content")
+
+
+fixture_path = Path(os.environ["HERDR_STUB_FIXTURE"])
+call_log_path = Path(os.environ["HERDR_STUB_CALL_LOG"])
+state_path = Path(os.environ["HERDR_STUB_STATE"])
+argv = sys.argv[1:]
+
+with call_log_path.open("a", encoding="utf-8") as handle:
+    handle.write(json.dumps(argv, ensure_ascii=False) + "\n")
+
+fixture = json.loads(fixture_path.read_text(encoding="utf-8"))
+matches = [item for item in fixture.get("responses", []) if item.get("argv") == argv]
+if len(matches) != 1:
+    stop(f"unexpected herdr invocation: {argv!r}")
+response = matches[0]
+
+state = {}
+if state_path.exists():
+    state = json.loads(state_path.read_text(encoding="utf-8"))
+key = json.dumps(argv, ensure_ascii=False, separators=(",", ":"))
+index = state.get(key, 0)
+results = response.get("results", [])
+if not results:
+    stop(f"herdr fixture has no results: {argv!r}")
+if index >= len(results):
+    if response.get("repeat_last", False):
+        result = results[-1]
+    else:
+        stop(f"herdr invocation exhausted ordered responses: {argv!r}")
+else:
+    result = results[index]
+state[key] = index + 1
+state_path.write_text(json.dumps(state, sort_keys=True), encoding="utf-8")
+
+for effect in result.get("effects", []):
+    path = Path.cwd() / effect["path"]
+    if effect["action"] == "write":
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(content(effect), encoding="utf-8")
+    elif effect["action"] == "remove":
+        path.unlink(missing_ok=True)
+    elif effect["action"] == "chmod":
+        path.chmod(int(effect["mode"], 8))
+    else:
+        stop(f"unknown stub effect: {effect['action']!r}")
+
+if "agent" in result:
+    result["stdout_json"] = {"result": {"agent": result["agent"]}}
+elif "agents" in result:
+    result["stdout_json"] = {"result": {"agents": result["agents"]}}
+elif "pane" in result:
+    result["stdout_json"] = {"result": {"pane": result["pane"]}}
+elif "layout" in result:
+    result["stdout_json"] = {"result": {"layout": result["layout"]}}
+
+if "stdout_json" in result:
+    print(json.dumps(result["stdout_json"], ensure_ascii=False, separators=(",", ":")))
+elif "stdout" in result:
+    sys.stdout.write(result["stdout"])
+if "error" in result:
+    result["stderr_json"] = {"error": {"code": result["error"]}}
+if "stderr_json" in result:
+    print(json.dumps(result["stderr_json"], ensure_ascii=False, separators=(",", ":")), file=sys.stderr)
+elif "stderr" in result:
+    sys.stderr.write(result["stderr"])
+raise SystemExit(result.get("status", 1 if "error" in result else 0))

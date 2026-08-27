@@ -1,0 +1,16 @@
+{
+  "id": "run-finish-status-6-unlink-failed",
+  "script": "run-finish.sh",
+  "args": ["run-1"],
+  "setup": {
+    "dirs": [".crew/run-1"],
+    "files": {".crew/.current": "run-1\n"},
+    "modes": {".crew": "0555"}
+  },
+  "expect": {
+    "status": 6,
+    "stderr_contains": ["cannot remove"],
+    "calls_exact": [],
+    "files": {".crew/.current": "run-1\n"}
+  }
+}

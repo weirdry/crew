@@ -1,0 +1,12 @@
+{
+  "id": "worker-stop-status-3-not-recorded-lead",
+  "script": "worker-stop.sh",
+  "env": {"HERDR_ENV": "1", "HERDR_PANE_ID": "lead-other"},
+  "setup": {"files": {".crew/worker.json": {"json": {"version": 1, "lead_pane_id": "lead-1", "worker_pane_id": "worker-1", "worker_name": "crew-worker", "worker_kind": "codex"}}}},
+  "expect": {
+    "status": 3,
+    "stdout_contains": ["outcome=refused:not-recorded-lead"],
+    "calls_exact": [],
+    "calls_absent_prefix": [["pane", "close"]]
+  }
+}

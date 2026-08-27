@@ -1,0 +1,6 @@
+{
+  "id": "worker-stop-status-2-arguments",
+  "script": "worker-stop.sh",
+  "args": ["unexpected"],
+  "expect": {"status": 2, "calls_exact": [], "calls_absent_prefix": [["pane", "close"]]}
+}

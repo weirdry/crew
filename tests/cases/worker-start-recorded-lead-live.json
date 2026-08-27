@@ -1,0 +1,24 @@
+{
+  "id": "worker-start-recorded-lead-live",
+  "script": "worker-start.sh",
+  "args": ["codex"],
+  "env": {"HERDR_ENV": "1", "HERDR_PANE_ID": "lead-new"},
+  "setup": {
+    "dirs": [".crew/run-1"],
+    "files": {
+      ".crew/.current": "run-1\n",
+      ".crew/worker.json": {"json": {"version": 1, "lead_pane_id": "lead-old", "worker_pane_id": "worker-1", "worker_name": "crew-worker", "worker_kind": "codex"}}
+    }
+  },
+  "herdr": [
+    {"argv": ["agent", "list"], "results": [{"agents": [{"pane_id": "lead-new", "agent": "claude"}]}]},
+    {"argv": ["agent", "get", "crew-worker"], "results": [{"agent": {"name": "crew-worker", "pane_id": "worker-1", "agent": "codex"}}]},
+    {"argv": ["pane", "get", "lead-old"], "results": [{"pane": {"pane_id": "lead-old"}}]}
+  ],
+  "expect": {
+    "status": 11,
+    "stderr_contains": ["outcome=refused:recorded-lead-live"],
+    "calls_exact": [["agent", "list"], ["agent", "get", "crew-worker"], ["pane", "get", "lead-old"]],
+    "calls_absent_prefix": [["pane", "split"]]
+  }
+}

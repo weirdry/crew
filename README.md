@@ -113,6 +113,9 @@ classification, approval authority, and verdicts remain with the lead.
 The `run-finish.sh` helper carries the run-ending step alongside them: it removes the active-run
 pointer at terminal Finishing and keeps it only for an open run.
 
+The helper test suite is documented in [`tests/README.md`](tests/README.md) and runs without a
+Herdr server. It deliberately excludes `run-init.sh`.
+
 ## License
 
 MIT

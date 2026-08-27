@@ -1,0 +1,27 @@
+{
+  "id": "worker-start-status-7-composer-wait-failed",
+  "script": "worker-start.sh",
+  "args": ["codex"],
+  "env": {"HERDR_ENV": "1", "HERDR_PANE_ID": "lead-1"},
+  "setup": {"dirs": [".crew/run-1"], "files": {".crew/.current": "run-1\n"}},
+  "herdr": [
+    {"argv": ["agent", "list"], "results": [{"agents": [{"pane_id": "lead-1", "agent": "claude"}]}]},
+    {"argv": ["agent", "get", "{derived_name}"], "results": [{"error": "agent_not_found"}]},
+    {"argv": ["pane", "layout", "--pane", "lead-1"], "results": [{"layout": {"panes": [{"pane_id": "lead-1", "rect": {"width": 100, "height": 40}}]}}]},
+    {"argv": ["pane", "split", "--pane", "lead-1", "--direction", "right", "--cwd", "{cwd}", "--no-focus"], "results": [{"pane": {"pane_id": "split-1"}}]},
+    {"argv": ["pane", "wait-output", "split-1", "--regex", "[#$%>❯] ?$", "--source", "detection", "--lines", "5", "--timeout", "60000"], "results": [{}]},
+    {"argv": ["agent", "start", "{derived_name}", "--kind", "codex", "--pane", "split-1", "--timeout", "60000"], "results": [{}]},
+    {"argv": ["pane", "wait-output", "split-1", "--regex", "Ask Codex", "--source", "visible", "--timeout", "60000"], "results": [{"status": 1}]},
+    {"argv": ["pane", "close", "split-1"], "results": [{}]}
+  ],
+  "expect": {
+    "status": 7,
+    "calls_exact": [
+      ["agent", "list"], ["agent", "get", "{derived_name}"], ["pane", "layout", "--pane", "lead-1"],
+      ["pane", "split", "--pane", "lead-1", "--direction", "right", "--cwd", "{cwd}", "--no-focus"],
+      ["pane", "wait-output", "split-1", "--regex", "[#$%>❯] ?$", "--source", "detection", "--lines", "5", "--timeout", "60000"],
+      ["agent", "start", "{derived_name}", "--kind", "codex", "--pane", "split-1", "--timeout", "60000"],
+      ["pane", "wait-output", "split-1", "--regex", "Ask Codex", "--source", "visible", "--timeout", "60000"], ["pane", "close", "split-1"]
+    ]
+  }
+}

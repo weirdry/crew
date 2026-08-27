@@ -1,0 +1,6 @@
+{
+  "id": "approval-status-3-active-run-absent",
+  "script": "approval.sh",
+  "args": ["check", "crew-worker"],
+  "expect": {"status": 3, "stderr_contains": ["cannot read active run"], "calls_exact": []}
+}

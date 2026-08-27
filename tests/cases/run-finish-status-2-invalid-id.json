@@ -1,0 +1,6 @@
+{
+  "id": "run-finish-status-2-invalid-id",
+  "script": "run-finish.sh",
+  "args": ["bad/id"],
+  "expect": {"status": 2, "stderr_contains": ["invalid run id"], "calls_exact": []}
+}

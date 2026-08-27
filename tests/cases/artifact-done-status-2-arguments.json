@@ -1,0 +1,6 @@
+{
+  "id": "artifact-done-status-2-arguments",
+  "script": "artifact-done.sh",
+  "args": [],
+  "expect": {"status": 2, "stderr_contains": ["usage: artifact-done.sh"], "calls_exact": []}
+}

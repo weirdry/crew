@@ -1,0 +1,7 @@
+{
+  "id": "artifact-done-present-correct",
+  "script": "artifact-done.sh",
+  "args": ["report.md"],
+  "setup": {"files": {"report.md": "evidence\nSTATUS: done\n"}},
+  "expect": {"status": 0, "calls_exact": []}
+}
