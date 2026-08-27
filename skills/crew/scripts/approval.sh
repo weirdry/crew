@@ -3,7 +3,7 @@
 #   0  The rendered command was recorded, matched the run record, or matched --expect-b64.
 #   1  The rendered command was not recorded or did not match --expect-b64.
 #   2  Wrong arguments or an invalid expected-command token.
-#   3  The active run or its worker ownership receipt was absent or invalid.
+#   3  The active run or workspace partner ownership receipt was absent or invalid.
 #   4  Herdr state or a complete command confirmation could not be read.
 #   5  The approval record could not be read or appended safely.
 
@@ -156,11 +156,11 @@ if len(current_lines) != 1 or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127
 
 run_id = current_lines[0]
 run_dir = cwd / ".crew" / run_id
-receipt_path = run_dir / "worker-pane.json"
+receipt_path = cwd / ".crew" / "worker.json"
 try:
     receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
 except (OSError, UnicodeError, json.JSONDecodeError) as error:
-    fail(f"cannot read worker ownership receipt: {error}", 3)
+    fail(f"cannot read workspace partner ownership receipt: {error}", 3)
 if (
     not isinstance(receipt, dict)
     or receipt.get("version") != 1
@@ -168,7 +168,7 @@ if (
     or not isinstance(receipt.get("worker_pane_id"), str)
     or not receipt["worker_pane_id"]
 ):
-    fail("worker does not match the active run ownership receipt", 3)
+    fail("worker does not match the workspace partner ownership receipt", 3)
 
 try:
     agent_result = subprocess.run(
@@ -186,7 +186,7 @@ try:
 except (json.JSONDecodeError, KeyError, TypeError) as error:
     fail(f"invalid worker state: {error}", 4)
 if agent.get("pane_id") != receipt["worker_pane_id"] or agent.get("agent_status") != "blocked":
-    fail("cannot extract command: active-run worker is not blocked in its recorded pane", 4)
+    fail("cannot extract command: workspace partner is not blocked in its recorded pane", 4)
 
 try:
     read_result = subprocess.run(

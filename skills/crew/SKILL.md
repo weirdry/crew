@@ -8,6 +8,10 @@ description: "Run a bounded multi-model collaboration loop inside Herdr. This ag
 Crew pairs you (the **lead**) with a **worker** agent of a different model kind. The lead owns
 scoping, supervision, review, and the decision to stop. The worker owns implementation.
 
+A **run** is one bounded collaboration with frozen scope, at most three rounds, and one verdict.
+The worker is the workspace's **partner**: it keeps its context across runs and remains live until
+the user explicitly asks to retire it.
+
 The value of this arrangement is exactly one thing: the reviewer and the author have different
 failure patterns. If both agents are the same model kind, that value is gone and the host
 agent's built-in subagents are cheaper and more reliable. Refuse the same-kind case.
@@ -22,16 +26,17 @@ test "${HERDR_ENV:-}" = 1
 
 Not inside a Herdr pane: say so and stop.
 
-Determine your own kind, then pick the worker kind:
+Determine your own kind, then determine the partner kind:
 
 ```bash
 herdr agent list
 ```
 
-Find the entry whose `pane_id` equals `$HERDR_PANE_ID`; its `agent` field is your own kind.
-The worker kind is whatever the user asked for, otherwise any supported kind that is **not**
-your own. If the user asks for a worker of your own kind, tell them crew adds nothing over
-built-in subagents for that case and stop.
+Find the entry whose `pane_id` equals `$HERDR_PANE_ID`; its `agent` field is your own kind. A live
+partner recorded in `.crew/worker.json` supplies the partner kind; otherwise use whatever the
+user asked for, or any supported kind that is **not** your own. If the retained or requested
+partner is your own kind, tell the user Crew adds nothing over built-in subagents for that pair
+and stop. Explicit retirement is the only way to replace a retained same-kind partner.
 
 The worker is the only writer of source files. If the cwd is a Git repository, record the
 starting commit and report an already-dirty tree to the user before starting. Do not clean it.
@@ -101,12 +106,13 @@ back from `.crew/.current` afterwards:
 IFS= read -r run_id < .crew/.current
 ```
 
-Files the run writes — `.crew/.current` at the `.crew/` root, the rest in the run directory:
+Files the loop writes — `.crew/.current` and `.crew/worker.json` at the `.crew/` root, the rest in
+the run directory:
 
 | File | Written by | Purpose |
 | --- | --- | --- |
 | `.crew/.current` | lead | Active run id; present from initialization through an open run, removed after terminal Finishing |
-| `worker-pane.json` | `worker-start.sh` | Immutable lead/worker pane ownership receipt used by guarded cleanup |
+| `.crew/worker.json` | `worker-start.sh` | Workspace partner identity and lead/partner pane ownership used by attach and guarded retirement |
 | `approvals.jsonl` | `approval.sh` | Run-scoped reusable approvals keyed by complete rendered command text |
 | `task.md` | lead | Frozen scope; contents specified in "What `task.md` must contain" below |
 | `plan-check.md` | worker | Optional pre-implementation objections |
@@ -199,44 +205,77 @@ In phase 4 review the diff against **the user's original request**, not only aga
 
 ## Starting the worker
 
-Inspect your own pane, then split. Wide pane splits right, tall or narrow pane splits down.
-
-Use the helper for the complete mechanical sequence. It requires an active run, records the
-caller and created worker in that run's `worker-pane.json`, and prints `pane_id=<id>`, the
-composer-marker result, and the receipt path:
+Use the attach-or-create helper after initializing the run. Pass the expected partner kind. It
+prints `outcome=attached` or `outcome=created`, the stable partner name, its pane id, and the
+workspace receipt path:
 
 ```bash
-<crew-skill-dir>/scripts/worker-start.sh <worker-name> <worker-kind>
+<crew-skill-dir>/scripts/worker-start.sh <worker-kind>
 ```
+
+The helper derives the partner name as `crew-<workspace>-<digest>`. `<workspace>` is up to 14
+normalized characters from the canonical workspace directory name; `<digest>` is the first 12
+lowercase hexadecimal digits of SHA-256 over the canonical absolute workspace path. The result
+fits `[a-z][a-z0-9_-]{0,31}`, is recognizable in `herdr agent list`, remains stable across runs,
+and uses the digest suffix to distinguish workspaces with the same directory name.
+
+When `.crew/worker.json` names a live partner, the helper verifies that the name and kind still
+resolve to the recorded pane and attaches without splitting or calling `agent start`. The
+recorded lead retains ownership while its pane is live, so another lead is refused with exit
+status 11. If the recorded lead pane is gone, the attaching lead atomically replaces only the
+receipt's `lead_pane_id` with its own and reports `ownership=transferred`. A requested kind that
+differs from the receipt is refused with exit status 14. `--create` makes creation intent
+explicit and exits 13 instead of attaching while a recorded partner is live:
+
+```bash
+<crew-skill-dir>/scripts/worker-start.sh --create <worker-kind>
+```
+
+When the recorded agent is absent but its pane still exists, the helper waits for that pane's
+shell prompt and starts the same name and kind there. It prints `pane_source=reused` and
+`receipt_action=replaced-stale`. It splits a new pane only when no receipt exists or the recorded
+pane is also gone. Wide panes split right; tall or narrow panes split down.
 
 The helper waits for composer markers only for the kinds in the table below. For any other kind
 it prints `composer_wait=skipped:no-documented-marker`; retain the artifact check and
-re-prompt-once fallback. If a post-split step fails, the helper closes its pane. Exit status 8
-means that cleanup failed and prints `pane_id=<id>` for manual recovery. Exit status 9 means
-the ownership receipt failed and the helper closed the new pane.
+re-prompt-once fallback. If a post-split step fails, the helper closes only the pane it just
+split. Exit status 8 means that cleanup failed and prints `pane_id=<id>` for manual recovery.
+Exit status 9 means receipt installation failed; a newly split pane is closed, while a reused
+recorded pane is left intact.
 
-To perform the same sequence by hand, inspect the caller pane and choose the direction from its
-rectangle before splitting:
+To perform attachment by hand, read `.crew/worker.json`, then query both recorded identities:
+
+```bash
+herdr agent get <recorded-worker-name>
+herdr pane get <recorded-lead-pane-id>
+```
+
+Require the live agent's name, kind, and pane id to equal the receipt. If the caller is the
+recorded lead, retain the receipt unchanged. If the recorded lead pane is absent, recheck the
+agent identity and the unchanged receipt immediately before atomically updating only
+`lead_pane_id`. Refuse attachment while another recorded lead pane is live. Never infer
+ownership from focus, geometry, or visual position.
+
+To create by hand, first establish that no recorded partner is live. If a stale receipt's pane
+still exists, reuse that pane. Otherwise inspect the caller pane and choose the direction from
+its rectangle before splitting:
 
 ```bash
 herdr pane layout --pane "$HERDR_PANE_ID"
-herdr pane split --current --direction right --cwd "$PWD" --no-focus
+herdr pane split --pane "$HERDR_PANE_ID" --direction right --cwd "$PWD" --no-focus
 ```
 
-Read the new pane id from `.result.pane.pane_id`.
-
-A freshly split pane is not immediately an available shell; `agent start` fails with
-`agent_pane_busy` until the interactive prompt appears. Confirm the prompt first:
+Read the new pane id from `.result.pane.pane_id`. A freshly split or stale recorded pane is not
+ready until its interactive shell prompt appears:
 
 ```bash
 herdr pane wait-output <pane-id> --regex '[#$%>❯] ?$' --source detection --lines 5 --timeout 60000
 ```
 
-Then start the worker with a name unique among live agents (`herdr agent list` shows the live
-set; names must match `[a-z][a-z0-9_-]{0,31}`):
+Then start the derived name in a new pane, or the recorded name in a reused pane:
 
 ```bash
-herdr agent start crew-<run-id-suffix> --kind <worker-kind> --pane <pane-id> --timeout 60000
+herdr agent start <partner-name> --kind <worker-kind> --pane <pane-id> --timeout 60000
 ```
 
 Start with no native arguments. The worker's own configuration decides its permissions; that
@@ -260,10 +299,11 @@ herdr pane wait-output <pane-id> --regex <marker> --source visible --timeout 600
 For a kind absent from this table, fall back to the re-prompt-once rule under Known failure
 modes.
 
-When performing startup by hand, write `worker-pane.json` with version 1 and the exact
-`lead_pane_id`, `worker_pane_id`, `worker_name`, and `worker_kind` values before the first
-prompt. Create it exclusively; never overwrite an existing receipt. The guarded finishing step
-depends on this ownership evidence.
+When performing creation by hand, write `.crew/worker.json` with version 1 and the exact
+`lead_pane_id`, `worker_pane_id`, `worker_name`, and `worker_kind` values before the first prompt.
+Create it exclusively when absent. Replace a stale receipt only after rechecking that its agent
+is absent and its contents are unchanged; never replace a receipt for a live partner. Guarded
+retirement depends on this ownership evidence.
 
 ## Prompting the worker
 
@@ -455,8 +495,8 @@ Enforced rules:
   marker in "Starting the worker". For a worker kind with no known marker, let the artifact
   check catch the missing output, then apply the existing re-prompt-once rule.
 - Self-update exit — a worker self-updates on launch, exits, and releases its name. Wait for
-  the same pane to return to a shell prompt, then start the agent again in that pane under the
-  same name.
+  the recorded pane to return to a shell prompt, then let `worker-start.sh` reuse it under the
+  same name. Do not split while that recorded pane still exists.
 - `agent_prompt_stalled` — no lifecycle change within five seconds of a prompt. Do not resend
   blindly; read the pane first.
 - `agent_blocked` — `herdr agent prompt` refuses a worker that remains at a dialog. Return to
@@ -469,77 +509,60 @@ Enforced rules:
   regardless of `--lines`. This is why artifacts are files.
 - Name collision — agent names must be unique among live agents across all workspaces.
 - Wrong-pane cleanup — never close `--current`, `$HERDR_PANE_ID`, or a pane copied from visual
-  position. `worker-stop.sh` closes only the worker in the active run's ownership receipt and
-  refuses unless the caller is the recorded lead and the live worker still resolves to the
-  recorded pane.
+  position. `worker-stop.sh` closes only the partner in `.crew/worker.json`, only after explicit
+  user instruction, and refuses unless the caller is the recorded lead and the live name and kind
+  still resolve to the recorded pane.
 - `unknown` — Herdr cannot classify the pane. It is not evidence of completion.
+
+## Retiring the partner
+
+Run retirement only when the user explicitly asks to retire the partner. It is independent of
+Finishing and does not require an active run:
+
+```bash
+<crew-skill-dir>/scripts/worker-stop.sh
+```
+
+The helper reads `.crew/worker.json`, requires the caller to equal its `lead_pane_id`, refuses a
+target equal to the caller or lead pane, and verifies that the live partner's name, kind, and pane
+id exactly match the receipt. It then closes that pane and removes only `.crew/worker.json`. Stop
+on every refusal. If the recorded lead is gone, initialize a run and attach first so the guarded
+ownership-transfer path makes the current lead responsible for retirement.
+
+Without the helper, read all five receipt fields, require `lead_pane_id == $HERDR_PANE_ID`, require
+`worker_pane_id != $HERDR_PANE_ID`, and run `herdr agent get <recorded-worker-name>`. Close only
+when the returned name, kind, and pane id exactly equal the receipt, then recheck the unchanged
+receipt before removing it. Never use `--current` for cleanup.
 
 ## Finishing
 
 - A run stopped at the round cap with unresolved blockers or at an unanswered class-(b)
   escalation has no terminal verdict. Keep `.crew/.current` and use its `state.md` as the resume
   point; do not enter the remaining Finishing steps.
-- If `worker-pane.json` exists, close the run-owned worker with the guarded helper first:
-
-  ```bash
-  <crew-skill-dir>/scripts/worker-stop.sh
-  ```
-
-  It reads the active run's immutable `worker-pane.json`, refuses when the caller is not the
-  recorded lead or the target equals the caller/lead, verifies that the recorded worker name
-  still resolves to the recorded pane, and only then runs `herdr pane close
-  <recorded-worker-pane-id>`. Exit status 5 alone does not prove that the worker is absent; the
-  finishing helper below distinguishes an absent name from a live pane mismatch. Stop on every
-  other refusal. Skip this step when no receipt exists.
-- Without the worker helper, read all four receipt fields, require
-  `lead_pane_id == $HERDR_PANE_ID`,
-  require `worker_pane_id != $HERDR_PANE_ID`, and run `herdr agent get
-  <recorded-worker-name>`. Close the pane only when its live `pane_id` exactly equals the
-  receipt's `worker_pane_id`. Never use `--current` for cleanup.
-- After the worker closes, or after `worker-stop.sh` exits 5 because the recorded name is no
-  longer live, end the named run:
+- Read `.crew/worker.json` and report the retained partner's `worker_name` and `worker_pane_id`.
+  Do not close it or remove its receipt at Finishing.
+- End the named run:
 
   ```bash
   <crew-skill-dir>/scripts/run-finish.sh "$run_id"
   ```
 
-  It removes `.crew/.current` only when it still names `run_id`. A receipt makes it query the
-  recorded `worker_name`: a live result refuses removal, exact `agent_not_found` proves the
-  worker absent, and every other query failure stops safely. A run with no receipt proceeds.
-- Without the finishing helper, compare `.crew/.current` to `run_id`, then apply the same live
-  worker guard before removing only the pointer:
+  It requires the named run directory, removes `.crew/.current` only when it names `run_id`, and
+  rechecks that pointer immediately before unlinking it. Partner liveness does not gate run
+  completion.
+- Without the finishing helper, apply the same pointer-only checks:
 
   ```bash
   IFS= read -r current_run < .crew/.current
   test "$current_run" = "$run_id" || exit 1
   test -d ".crew/$run_id" || exit 1
-  receipt=".crew/$run_id/worker-pane.json"
-  if test -e "$receipt"; then
-    worker_name=$(python3 -c '
-import json, sys
-data = json.load(open(sys.argv[1], encoding="utf-8"))
-name = data.get("worker_name")
-if not isinstance(name, str) or not name:
-    raise SystemExit("invalid worker_name")
-print(name)
-' "$receipt") || exit 1
-    if worker_result=$(herdr agent get "$worker_name" 2>&1); then
-      printf 'worker_name=%s\noutcome=refused:worker-live\n' "$worker_name" >&2
-      exit 1
-    fi
-    worker_error=$(python3 -c '
-import json, sys
-print(json.loads(sys.argv[1])["error"]["code"])
-' "$worker_result") || exit 1
-    test "$worker_error" = agent_not_found || exit 1
-  fi
   IFS= read -r current_run < .crew/.current
   test "$current_run" = "$run_id" || exit 1
   rm .crew/.current
   ```
 
-- Keep the lead pane open. Never close a pane that lacks this run's ownership receipt.
+- Keep the lead and partner panes open. Retirement is never an implicit Finishing step.
 - Leave the run directory in place; it is the audit trail. Tell the user its path.
-- Report: rounds used, final verdict, files changed, dismissed findings, and anything escalated
-  but never answered.
+- Report: rounds used, final verdict, files changed, retained partner name and pane id, dismissed
+  findings, and anything escalated but never answered.
 - Never run `herdr server stop`. Never close panes, tabs, or workspaces you did not create.
