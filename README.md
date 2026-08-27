@@ -34,8 +34,12 @@ ln -s ~/_GIT/crew/skills/crew ~/.claude/skills/crew   # Claude Code
 ln -s ~/_GIT/crew/skills/crew ~/.codex/skills/crew    # Codex ($CODEX_HOME/skills)
 ```
 
-Because the link points at the checkout, editing the repository updates the installed skill
-immediately. This is the right setup while iterating on it.
+Because the link points at the checkout, every commit is a live deploy: it replaces the helpers
+for every session using the skill at once, including a crew run in progress in another
+workspace, whose lead still holds the previous `SKILL.md` in context while executing the new
+scripts. Use the symlink when developing crew itself, and do not commit to it while another run
+is in flight. For everyday use, install a copy with the skills CLI below and update it
+deliberately.
 
 **With the skills CLI.** The [skills](https://github.com/vercel-labs/skills) CLI comes from npm,
 but the skill itself is fetched from this Git repository:
@@ -59,7 +63,7 @@ The skill only activates when it is named explicitly.
 
 ```
 scope (lead + user, frozen)
-  → optional plan check (worker, closed question)
+  → plan check (worker, closed question; required when the change touches shared machinery)
   → implement (worker)
   → cheap self-check (worker: tests, lint, diff re-read)
   → independent review (lead, against the user's original request)

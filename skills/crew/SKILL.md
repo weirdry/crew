@@ -115,7 +115,7 @@ the run directory:
 | `.crew/worker.json` | `worker-start.sh` | Workspace partner identity and lead/partner pane ownership used by attach and guarded retirement |
 | `approvals.jsonl` | `approval.sh` | Run-scoped reusable approvals keyed by complete rendered command text |
 | `task.md` | lead | Frozen scope; contents specified in "What `task.md` must contain" below |
-| `plan-check.md` | worker | Optional pre-implementation objections |
+| `plan-check.md` | worker | Pre-implementation objections; required when the change touches shared machinery |
 | `report-<n>.md` | worker | What it did, what it checked, open questions |
 | `review-<n>.md` | lead | Structured findings and verdict |
 | `dismissed.md` | lead | Closed findings with one-line reasons; never reopened |
@@ -176,7 +176,7 @@ before deciding.
 | # | Actor | Reads | Writes | Exit condition |
 | --- | --- | --- | --- | --- |
 | 0 | lead + user | user request | `task.md` | User confirms the scope. Scope is now frozen. |
-| 1 | worker | `task.md`, repo | `plan-check.md` | Artifact present (may be `없음`). Optional; skip on small tasks. |
+| 1 | worker | `task.md`, repo | `plan-check.md` | Artifact present (may be `없음`). Required for shared machinery; see below. |
 | 2 | worker | `task.md` | code, `report-1.md` | Artifact present with `STATUS: done` |
 | 3 | worker | own diff | appended to `report-<n>.md` | Tests/lint run, diff re-read. Keep this cheap. |
 | 4 | lead | `git diff`, `task.md` | `review-<n>.md` | Verdict recorded |
@@ -189,6 +189,13 @@ increment the round before returning to phase 5. Round cap is **3**. If the incr
 start round 4, do not return to phase 5. Stop, copy every unresolved finding that caused the
 `block`, including its `withdraw_if` condition, into `state.md`, and hand them to the user. Do
 not keep iterating.
+
+Run phase 1 whenever the change touches something an existing component already reads, calls,
+or depends on — a helper script, a file another script consumes, a rule another section cites.
+Skip it only for an isolated edit with no consumer. The lead writes scope while holding the new
+idea in mind and does not re-derive how it lands on what is already there; a worker reading the
+frozen scope cold has no such attachment. That is where the lead's blind spot is — seams with
+earlier decisions, not the new design itself.
 
 Phase 1 findings are objections against frozen scope, not authority to reopen it. The lead
 takes them to the user as proposed amendments; neither agent disposes of one alone. Append each
@@ -513,6 +520,11 @@ Enforced rules:
   user instruction, and refuses unless the caller is the recorded lead and the live name and kind
   still resolve to the recorded pane.
 - `unknown` — Herdr cannot classify the pane. It is not evidence of completion.
+- Helper changed under a running lead — with the symlinked install, a commit to the skill
+  repository replaces the helpers for every live session at once, including a run in progress in
+  another workspace whose lead still holds the previous `SKILL.md` in context. If a helper's
+  behaviour contradicts this document mid-run, check the skill repository's log before
+  diagnosing the run.
 
 ## Retiring the partner
 
