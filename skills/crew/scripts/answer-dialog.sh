@@ -11,9 +11,11 @@ set -u
 
 expected_approval_b64=
 expected_approval_present=no
+expected_grant_b64=
+expected_grant_present=no
 if [ "${1-}" = --expected-command-b64 ]; then
   if [ "$#" -lt 4 ]; then
-    printf '%s\n' 'usage: answer-dialog.sh [--expected-command-b64 <token>] <worker> <key>...' >&2
+    printf '%s\n' 'usage: answer-dialog.sh [--expected-command-b64 <token> [--expected-grant-b64 <token>]] <worker> <key>...' >&2
     exit 2
   fi
   expected_approval_b64=$2
@@ -21,8 +23,18 @@ if [ "${1-}" = --expected-command-b64 ]; then
   shift 2
 fi
 
+if [ "${1-}" = --expected-grant-b64 ]; then
+  if [ "$expected_approval_present" != yes ] || [ "$#" -lt 4 ]; then
+    printf '%s\n' 'usage: answer-dialog.sh [--expected-command-b64 <token> [--expected-grant-b64 <token>]] <worker> <key>...' >&2
+    exit 2
+  fi
+  expected_grant_b64=$2
+  expected_grant_present=yes
+  shift 2
+fi
+
 if [ "$#" -lt 2 ]; then
-  printf '%s\n' 'usage: answer-dialog.sh [--expected-command-b64 <token>] <worker> <key>...' >&2
+  printf '%s\n' 'usage: answer-dialog.sh [--expected-command-b64 <token> [--expected-grant-b64 <token>]] <worker> <key>...' >&2
   exit 2
 fi
 
@@ -39,6 +51,23 @@ except (UnicodeError, ValueError):
     raise SystemExit(1)
 ' "$expected_approval_b64"; then
     printf '%s\n' 'invalid expected-command token' >&2
+    exit 2
+  fi
+fi
+
+if [ "$expected_grant_present" = yes ]; then
+  if [ -z "$expected_grant_b64" ]; then
+    printf '%s\n' 'invalid expected-grant token' >&2
+    exit 2
+  fi
+  if ! python3 -c '
+import base64, sys
+try:
+    base64.b64decode(sys.argv[1].encode("ascii"), altchars=b"-_", validate=True).decode("utf-8")
+except (UnicodeError, ValueError):
+    raise SystemExit(1)
+' "$expected_grant_b64"; then
+    printf '%s\n' 'invalid expected-grant token' >&2
     exit 2
   fi
 fi
@@ -90,12 +119,21 @@ fi
 
 if [ "$expected_approval_present" = yes ]; then
   approval_helper=$(dirname "$0")/approval.sh
-  if verification=$(
-    "$approval_helper" check "$worker" --expect-b64 "$expected_approval_b64"
-  ); then
+  if [ "$expected_grant_present" = yes ]; then
+    verification=$(
+      "$approval_helper" check "$worker" --expect-b64 "$expected_approval_b64" \
+        --grant-b64 "$expected_grant_b64"
+    )
+    verification_status=$?
+  else
+    verification=$(
+      "$approval_helper" check "$worker" --expect-b64 "$expected_approval_b64"
+    )
+    verification_status=$?
+  fi
+  if [ "$verification_status" -eq 0 ]; then
     printf '%s\n' "$verification"
   else
-    verification_status=$?
     if [ -n "$verification" ]; then
       printf '%s\n' "$verification"
     fi

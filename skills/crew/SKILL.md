@@ -113,7 +113,7 @@ the run directory:
 | --- | --- | --- |
 | `.crew/.current` | lead | Active run id; present from initialization through an open run, removed after terminal Finishing |
 | `.crew/worker.json` | `worker-start.sh` | Workspace partner identity and lead/partner pane ownership used by attach and guarded retirement |
-| `approvals.jsonl` | `approval.sh` | Run-scoped reusable approvals keyed by typed approval keys |
+| `approvals.jsonl` | `approval.sh` | Run-scoped exact approvals plus inert set-grant proposals and granted sets |
 | `task.md` | lead | Frozen scope; contents specified in "What `task.md` must contain" below |
 | `plan-check.md` | worker | Pre-implementation objections; required when the change touches shared machinery |
 | `report-<n>.md` | worker | What it did, what it checked, open questions |
@@ -371,8 +371,12 @@ repeat:
                                                    continue
                          guard refusal → return to the blocked guard without sending
              class (b) → approval.sh check <worker>
-                         match → read printed approval_kind and command_b64;
+                         exact match → read printed approval_kind and command_b64;
                                  answer-dialog.sh --expected-command-b64 <token> <worker> <keys>;
+                                 handle advanced, failed, and refused results as above
+                         grant match → also read printed grant_b64;
+                                 answer-dialog.sh --expected-command-b64 <token>
+                                   --expected-grant-b64 <grant_b64> <worker> <keys>;
                                  handle advanced, failed, and refused results as above
                          no match or extraction failure → apply the class-(b) escalation and
                                                           approval-scope rule below, then stop
@@ -397,9 +401,10 @@ blocked-plus-visible-option-list guard, captures and prints `pre_key_seq`, sends
 keys, and polls. It never decides whether a dialog may be answered.
 
 `approval.sh` emits a typed approval key: a command key is its complete rendered command text;
-an edit key is operation `modify` plus its sorted, order-independent destination set. The edit
-extractor produces that key only for complete Codex dialogs whose fixed action markers positively
-identify content modifications and agree with the bounded `Destination:` metadata block.
+an edit key is operation `create` or `modify` plus its sorted, order-independent destination set.
+The edit extractor produces that key only for complete Codex dialogs whose fixed action markers
+positively identify creation or content modification and agree with the bounded `Destination:`
+metadata block.
 
 For a recorded class-(b) match, read `approval_kind` and `command_b64` from `approval.sh check`
 and pin the token at the send boundary:
@@ -412,6 +417,8 @@ and pin the token at the send boundary:
 The retained `--expected-command-b64` flag and `command_b64` output name carry the extracted
 typed approval key of either kind. The answer helper calls the same extractor immediately before
 sending and refuses with exit 3 when the kind or key changed or can no longer be extracted.
+For a grant match, `--expected-grant-b64` additionally re-resolves the current path containment
+against that exact grant immediately before sending.
 `approval.sh` refuses extraction unless it finds the confirmation line, the complete supported
 key region, and the option list; a truncation marker, ambiguous wrapped destination, unsupported
 edit operation, or frame cut that removes any anchor is an extraction failure. Its exit status 0
@@ -451,11 +458,17 @@ name fails safely without sending input. `esc` is the canonical Escape name.
 | (a) answer yourself | edit approval for a file inside the workspace; running tests, linters, or builds; a choice between options that `task.md` already settles; a clarifying question answerable from `task.md` | Apply the guarded `send-keys` path in the Supervision loop, then log the answer in `state.md` |
 | (b) escalate to the user | deleting or moving files; bulk rewrites; network access; writing outside the workspace; `git commit`, `push`, `reset`, or history rewriting; credentials or secrets; workspace trust prompts; anything not derivable from `task.md` | Check the active run's approval record first. On no match, report what is being asked directly to the user, attempt `herdr notification show "<title>" --body "<what is being asked>" --sound request` as a best-effort ping, read `.result.shown` from its response, then stop the round. If `shown` is `false`, tell the user that the ping was not shown. |
 
-A reusable class-(b) approval covers only a later dialog in the same run whose completely
-captured approval kind and key match the run record exactly. When escalating, tell the user that
-scope and distinguish it from a one-shot answer; record it only after the user grants the
-reusable scope. Always select the one-shot affirmative option when sending a granted answer;
-never select the worker's broader "don't ask again" option.
+A reusable class-(b) approval is either one completely captured typed key or one user-visible set
+grant: command template `rm -rf -- {path}` with exactly one safe resolved absolute path at or
+below a canonical constrained root, or edit operation `create`, `modify`, or both with every safe
+resolved destination at or below that root. For a set, run `approval.sh propose <worker> --root
+<dir> [--ops create,modify]`, show the printed `grant_text` verbatim, and treat the user's answer
+as applying only to that text; only after yes run `approval.sh grant <worker> --proposal
+<proposal_sha256>`. The digest covers the exact grant text; the inert proposal record also binds
+the current typed key and derived root, kind, template, and operations, all of which `grant`
+recomputes. Every match and granted send rechecks the root and resolved containment. Exact and set
+reuse are run-scoped and kind-specific. Always select the one-shot affirmative option when sending
+a granted answer; never select the worker's broader "don't ask again" option.
 
 The run record is a convenience, not proof that the user granted an approval. It lives inside
 the worker-writable workspace, so reuse assumes a non-adversarial worker exactly as the rest of

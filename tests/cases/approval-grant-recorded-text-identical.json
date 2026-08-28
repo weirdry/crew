@@ -1,0 +1,29 @@
+{
+  "id": "approval-grant-recorded-text-identical",
+  "script": "approval.sh",
+  "args": ["grant", "crew-worker", "--proposal", "f96380ec1fe5c97b95d6cbb4500fad4acaf01f547aff0a5c02e8357b55cf55b2"],
+  "setup": {
+    "dirs": [".crew/run-1"],
+    "files": {
+      ".crew/.current": "run-1\n",
+      ".crew/worker.json": {"json": {"version": 1, "worker_pane_id": "worker-1", "worker_name": "crew-worker"}},
+      ".crew/run-1/approvals.jsonl": "{\"entry_type\": \"proposal\", \"proposal\": {\"approval\": {\"key\": \"rm -rf -- /private/tmp/grant-alpha\", \"kind\": \"command\"}, \"grant\": {\"kind\": \"command\", \"root\": \"/private/tmp\", \"template\": \"rm -rf -- {path}\"}, \"grant_text\": \"Allow command dialogs matching `rm -rf -- {path}` where `{path}` is one safe resolved path at or below `/private/tmp`.\"}, \"proposal_sha256\": \"f96380ec1fe5c97b95d6cbb4500fad4acaf01f547aff0a5c02e8357b55cf55b2\"}\n"
+    }
+  },
+  "herdr": [
+    {"argv": ["agent", "get", "crew-worker"], "results": [{"agent": {"pane_id": "worker-1", "agent_status": "blocked"}}]},
+    {"argv": ["agent", "read", "crew-worker", "--source", "visible", "--lines", "200", "--format", "text"], "results": [{"stdout": "Would you like to run the following command?\n\n$ rm -rf -- /private/tmp/grant-alpha\n\n1. Yes\n2. No\n"}]}
+  ],
+  "expect": {
+    "status": 0,
+    "stdout_contains": [
+      "grant_text=Allow command dialogs matching `rm -rf -- {path}` where `{path}` is one safe resolved path at or below `/private/tmp`.",
+      "proposal_sha256=f96380ec1fe5c97b95d6cbb4500fad4acaf01f547aff0a5c02e8357b55cf55b2",
+      "outcome=grant-recorded"
+    ],
+    "files": {
+      ".crew/run-1/approvals.jsonl": "{\"entry_type\": \"proposal\", \"proposal\": {\"approval\": {\"key\": \"rm -rf -- /private/tmp/grant-alpha\", \"kind\": \"command\"}, \"grant\": {\"kind\": \"command\", \"root\": \"/private/tmp\", \"template\": \"rm -rf -- {path}\"}, \"grant_text\": \"Allow command dialogs matching `rm -rf -- {path}` where `{path}` is one safe resolved path at or below `/private/tmp`.\"}, \"proposal_sha256\": \"f96380ec1fe5c97b95d6cbb4500fad4acaf01f547aff0a5c02e8357b55cf55b2\"}\n{\"entry_type\": \"grant\", \"grant\": {\"kind\": \"command\", \"root\": \"/private/tmp\", \"template\": \"rm -rf -- {path}\"}, \"grant_text\": \"Allow command dialogs matching `rm -rf -- {path}` where `{path}` is one safe resolved path at or below `/private/tmp`.\", \"proposal_sha256\": \"f96380ec1fe5c97b95d6cbb4500fad4acaf01f547aff0a5c02e8357b55cf55b2\"}\n"
+    },
+    "calls_exact": [["agent", "get", "crew-worker"], ["agent", "read", "crew-worker", "--source", "visible", "--lines", "200", "--format", "text"]]
+  }
+}

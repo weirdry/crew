@@ -89,8 +89,8 @@ finishing. A phase counts as done only when its output file exists and ends with
 the workspace is what the worker was sent to do, so the lead approves it and the run keeps
 moving. Deleting, moving, reaching the network, writing outside the workspace, committing,
 pushing — those cross the boundary the user is watching the pane for, so they escalate.
-Ambiguous cases escalate. A user-granted reusable answer covers only a later dialog in the same
-run whose completely captured rendered command text matches the run record exactly; the lead
+Ambiguous cases escalate. A user-granted reusable answer covers either one exact typed dialog key
+or one immutable, verbatim-shown command/edit set under a constrained resolved root; the lead
 never selects the worker's broader "don't ask again" option.
 
 **The worker starts with no extra arguments.** Permissions come from the worker's own

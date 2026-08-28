@@ -1,0 +1,6 @@
+{
+  "id": "approval-grant-without-proposal-refused",
+  "script": "approval.sh",
+  "args": ["grant", "crew-worker", "--root", "/private/tmp"],
+  "expect": {"status": 2, "stderr_contains": ["usage:"], "calls_exact": []}
+}

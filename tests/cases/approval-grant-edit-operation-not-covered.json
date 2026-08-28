@@ -1,0 +1,18 @@
+{
+  "id": "approval-grant-edit-operation-not-covered",
+  "script": "approval.sh",
+  "args": ["check", "crew-worker"],
+  "setup": {
+    "dirs": [".crew/run-1", "fixtures"],
+    "files": {
+      ".crew/.current": "run-1\n",
+      ".crew/worker.json": {"json": {"version": 1, "worker_pane_id": "worker-1", "worker_name": "crew-worker"}},
+      ".crew/run-1/approvals.jsonl": "{\"entry_type\":\"grant\",\"grant\":{\"kind\":\"edit\",\"operations\":[\"create\"],\"root\":\"{cwd}/fixtures\"},\"grant_text\":\"Allow edit dialogs for create where every destination is one safe resolved path at or below `{cwd}/fixtures`.\",\"proposal_sha256\":\"test\"}\n"
+    }
+  },
+  "herdr": [
+    {"argv": ["agent", "get", "crew-worker"], "results": [{"agent": {"pane_id": "worker-1", "agent_status": "blocked"}}]},
+    {"argv": ["agent", "read", "crew-worker", "--source", "visible", "--lines", "200", "--format", "text"], "results": [{"stdout": "────────────────────────\n• Edited {cwd}/fixtures/a.txt (+1 -1)\n\nWould you like to make the following edits?\nDestination: {cwd}/fixtures/a.txt\n\n1. Yes\n2. No\n"}]}
+  ],
+  "expect": {"status": 1, "stdout_contains": ["outcome=no-match"], "calls_exact": [["agent", "get", "crew-worker"], ["agent", "read", "crew-worker", "--source", "visible", "--lines", "200", "--format", "text"]]}
+}

@@ -1,5 +1,5 @@
 {
-  "id": "approval-edit-added-cannot-record",
+  "id": "approval-edit-added-record",
   "script": "approval.sh",
   "args": ["record", "crew-worker"],
   "setup": {
@@ -14,8 +14,15 @@
     {"argv": ["agent", "read", "crew-worker", "--source", "visible", "--lines", "200", "--format", "text"], "results": [{"stdout": "────────────────────────\n• Added /private/tmp/edit-a.txt (+1 -0)\n    1 +one\n\nWould you like to make the following edits?\nDescription: Apply proposed file edits\nDestination: /private/tmp/edit-a.txt\n\n1. Yes\n2. No\n"}]}
   ],
   "expect": {
-    "status": 4,
-    "stderr_contains": ["operation is not a content modification"],
+    "status": 0,
+    "stdout_contains": ["approval_kind=edit", "outcome=recorded", "command_b64="],
+    "json_files": {
+      ".crew/run-1/approvals.jsonl": {
+        "key": {"destinations": ["/private/tmp/edit-a.txt"], "operation": "create"},
+        "kind": "edit",
+        "sha256": "837f885de6080aa96dacbba1e2b58d7bd365756ae4a2bc524824a053bc8df229"
+      }
+    },
     "calls_exact": [["agent", "get", "crew-worker"], ["agent", "read", "crew-worker", "--source", "visible", "--lines", "200", "--format", "text"]]
   }
 }

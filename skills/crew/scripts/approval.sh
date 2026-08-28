@@ -1,26 +1,40 @@
 #!/bin/sh
 # Exit statuses:
-#   0  The extracted approval was recorded, matched the run record, or matched --expect-b64.
-#   1  The extracted approval was not recorded or did not match --expect-b64.
-#   2  Wrong arguments or an invalid expected-command token.
+#   0  The extracted approval was recorded, matched, proposed, or granted.
+#   1  The extracted approval did not match or a grant/proposal was refused.
+#   2  Wrong arguments or an invalid expected/proposal token.
 #   3  The active run or workspace partner ownership receipt was absent or invalid.
 #   4  Herdr state or a complete supported approval confirmation could not be read.
 #   5  The approval record could not be read or appended safely.
 
 set -u
 
+usage() {
+  printf '%s\n' \
+    'usage: approval.sh record <worker> | approval.sh check <worker> [--expect-b64 <token> [--grant-b64 <token>]] | approval.sh propose <worker> --root <dir> [--ops create,modify] | approval.sh grant <worker> --proposal <digest>' >&2
+  exit 2
+}
+
 case "${1-}:$#" in
   record:2|check:2)
     ;;
   check:4)
-    if [ "$3" != --expect-b64 ]; then
-      printf '%s\n' 'usage: approval.sh record <worker> | approval.sh check <worker> [--expect-b64 <token>]' >&2
-      exit 2
-    fi
+    [ "$3" = --expect-b64 ] || usage
+    ;;
+  check:6)
+    [ "$3" = --expect-b64 ] && [ "$5" = --grant-b64 ] || usage
+    ;;
+  propose:4)
+    [ "$3" = --root ] || usage
+    ;;
+  propose:6)
+    [ "$3" = --root ] && [ "$5" = --ops ] || usage
+    ;;
+  grant:4)
+    [ "$3" = --proposal ] || usage
     ;;
   *)
-    printf '%s\n' 'usage: approval.sh record <worker> | approval.sh check <worker> [--expect-b64 <token>]' >&2
-    exit 2
+    usage
     ;;
 esac
 
@@ -37,9 +51,95 @@ import subprocess
 import sys
 
 
+SAFE_SEGMENT = re.compile(r"[A-Za-z0-9._-]+")
+COMMAND_TEMPLATE = "rm -rf -- {path}"
+GRANT_OPERATIONS = ("create", "modify")
+
+
 def fail(message: str, status: int) -> None:
     print(message, file=sys.stderr)
     raise SystemExit(status)
+
+
+def canonical_json(value: object) -> str:
+    return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+
+
+def encoded_json(value: object) -> str:
+    return base64.urlsafe_b64encode(canonical_json(value).encode("utf-8")).decode("ascii")
+
+
+def digest_json(value: object) -> str:
+    return hashlib.sha256(canonical_json(value).encode("utf-8")).hexdigest()
+
+
+def digest_text(value: str) -> str:
+    return hashlib.sha256(value.encode("utf-8")).hexdigest()
+
+
+def safe_absolute_path(value: object) -> bool:
+    if not isinstance(value, str) or not value.startswith("/") or value == "/":
+        return False
+    segments = value.split("/")[1:]
+    return bool(segments) and all(
+        segment not in {"", ".", ".."} and SAFE_SEGMENT.fullmatch(segment)
+        for segment in segments
+    )
+
+
+def resolved_candidate(value: str) -> Path | None:
+    if not safe_absolute_path(value):
+        return None
+    current = Path(value)
+    remaining: list[str] = []
+    while not os.path.lexists(current):
+        remaining.append(current.name)
+        parent = current.parent
+        if parent == current:
+            return None
+        current = parent
+    try:
+        resolved = current.resolve(strict=True)
+    except (OSError, RuntimeError):
+        return None
+    if remaining and not resolved.is_dir():
+        return None
+    for segment in reversed(remaining):
+        resolved /= segment
+    return resolved
+
+
+def is_at_or_below(candidate: Path, root: Path) -> bool:
+    try:
+        candidate.relative_to(root)
+        return True
+    except ValueError:
+        return False
+
+
+def valid_root(value: object, cwd: Path, run_dir: Path) -> Path | None:
+    if not safe_absolute_path(value):
+        return None
+    root = Path(value)
+    try:
+        resolved = root.resolve(strict=True)
+        workspace = cwd.resolve(strict=True)
+        active_run = run_dir.resolve(strict=True)
+    except (OSError, RuntimeError):
+        return None
+    if root != resolved or not resolved.is_dir():
+        return None
+    if is_at_or_below(workspace, resolved):
+        # Defense in depth: active_run is below workspace, so the next check subsumes this case.
+        return None
+    if is_at_or_below(active_run, resolved):
+        return None
+    return resolved
+
+
+def path_covered(value: str, root: Path) -> bool:
+    candidate = resolved_candidate(value)
+    return candidate is not None and is_at_or_below(candidate, root)
 
 
 def trim_region(lines: list[str], start: int, end: int) -> tuple[int, int]:
@@ -116,6 +216,8 @@ def extract_approval(frame: str) -> dict[str, object]:
 
         if not destinations:
             fail("cannot extract edit approval: destination metadata is absent", 4)
+        if any(not safe_absolute_path(destination) for destination in destinations):
+            fail("cannot extract edit approval: destination is not a safe absolute path", 4)
         destinations = sorted(set(destinations))
 
         rules = [index for index in range(0, confirmation) if is_rule(lines[index])]
@@ -142,12 +244,17 @@ def extract_approval(frame: str) -> dict[str, object]:
             fail("cannot extract edit approval: operation marker is absent", 4)
         if any(destination not in operations_by_destination for destination in destinations):
             fail("cannot extract edit approval: destination operation marker is absent", 4)
-        if any(operations_by_destination[destination] != "edited" for destination in destinations):
+        operations = {operations_by_destination[destination] for destination in destinations}
+        if operations == {"added"}:
+            operation = "create"
+        elif operations == {"edited"}:
+            operation = "modify"
+        else:
             fail("cannot extract edit approval: operation is not a content modification", 4)
 
         return {
             "kind": "edit",
-            "key": {"destinations": destinations, "operation": "modify"},
+            "key": {"destinations": destinations, "operation": operation},
         }
 
     command_start = None
@@ -200,7 +307,108 @@ def valid_approval(value: object) -> bool:
         return False
     destinations = key.get("destinations")
     return (
-        key.get("operation") == "modify"
+        key.get("operation") in GRANT_OPERATIONS
+        and isinstance(destinations, list)
+        and bool(destinations)
+        and all(isinstance(destination, str) and safe_absolute_path(destination) for destination in destinations)
+        and destinations == sorted(set(destinations))
+    )
+
+
+def parse_operations(value: str) -> list[str] | None:
+    operations = value.split(",")
+    if not operations or len(operations) != len(set(operations)):
+        return None
+    if any(operation not in GRANT_OPERATIONS for operation in operations):
+        return None
+    return [operation for operation in GRANT_OPERATIONS if operation in operations]
+
+
+def valid_grant_shape(value: object) -> bool:
+    if not isinstance(value, dict):
+        return False
+    if value.get("kind") == "command":
+        return set(value) == {"kind", "root", "template"} and value.get("template") == COMMAND_TEMPLATE
+    if value.get("kind") == "edit":
+        operations = value.get("operations")
+        return (
+            set(value) == {"kind", "operations", "root"}
+            and isinstance(operations, list)
+            and bool(operations)
+            and operations == [operation for operation in GRANT_OPERATIONS if operation in operations]
+            and len(operations) == len(set(operations))
+            and all(operation in GRANT_OPERATIONS for operation in operations)
+        )
+    return False
+
+
+def grant_text(grant: dict[str, object]) -> str:
+    root = grant["root"]
+    if grant["kind"] == "command":
+        return (
+            f"Allow command dialogs matching `{COMMAND_TEMPLATE}` where `{{path}}` is one safe "
+            f"resolved path at or below `{root}`."
+        )
+    operations = grant["operations"]
+    operation_text = " or ".join(operations)
+    return (
+        f"Allow edit dialogs for {operation_text} where every destination is one safe resolved "
+        f"path at or below `{root}`."
+    )
+
+
+def derive_grant(
+    approval: dict[str, object], root_value: object, operations: list[str] | None, cwd: Path, run_dir: Path
+) -> dict[str, object] | None:
+    root = valid_root(root_value, cwd, run_dir)
+    if root is None:
+        return None
+    if approval["kind"] == "command":
+        if operations is not None:
+            return None
+        command = approval["key"]
+        assert isinstance(command, str)
+        match = re.fullmatch(r"rm -rf -- (?P<path>/[^\n]*)", command)
+        if match is None:
+            return None
+        candidate = match.group("path")
+        if not safe_absolute_path(candidate) or not path_covered(candidate, root):
+            return None
+        return {"kind": "command", "root": str(root), "template": COMMAND_TEMPLATE}
+
+    if operations is None:
+        return None
+    key = approval["key"]
+    assert isinstance(key, dict)
+    operation = key["operation"]
+    destinations = key["destinations"]
+    if operation not in operations or not all(path_covered(destination, root) for destination in destinations):
+        return None
+    return {"kind": "edit", "operations": operations, "root": str(root)}
+
+
+def grant_covers(grant: dict[str, object], approval: dict[str, object], cwd: Path, run_dir: Path) -> bool:
+    if not valid_grant_shape(grant) or grant.get("kind") != approval.get("kind"):
+        return False
+    operations = grant.get("operations") if grant["kind"] == "edit" else None
+    return derive_grant(approval, grant.get("root"), operations, cwd, run_dir) == grant
+
+
+def proposal_payload(approval: dict[str, object], grant: dict[str, object]) -> dict[str, object]:
+    return {"approval": approval, "grant": grant, "grant_text": grant_text(grant)}
+
+
+def valid_stored_approval(value: object) -> bool:
+    if not isinstance(value, dict) or set(value) != {"kind", "key"}:
+        return False
+    key = value.get("key")
+    if value.get("kind") == "command":
+        return isinstance(key, str) and bool(key)
+    if value.get("kind") != "edit" or not isinstance(key, dict) or set(key) != {"destinations", "operation"}:
+        return False
+    destinations = key.get("destinations")
+    return (
+        key.get("operation") in GRANT_OPERATIONS
         and isinstance(destinations, list)
         and bool(destinations)
         and all(isinstance(destination, str) and bool(destination) for destination in destinations)
@@ -208,20 +416,82 @@ def valid_approval(value: object) -> bool:
     )
 
 
+def valid_exact_entry(entry: dict[str, object]) -> bool:
+    return "entry_type" not in entry and valid_stored_approval(
+        {"kind": entry.get("kind"), "key": entry.get("key")}
+    )
+
+
+def append_entry(record_path: Path, entry: dict[str, object]) -> None:
+    try:
+        with record_path.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(entry, ensure_ascii=False, sort_keys=True) + "\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+    except OSError as error:
+        fail(f"cannot append approval record: {error}", 5)
+
+
+def read_entries(record_path: Path) -> list[dict[str, object]]:
+    if not record_path.exists():
+        return []
+    entries: list[dict[str, object]] = []
+    try:
+        for number, line in enumerate(record_path.read_text(encoding="utf-8").splitlines(), 1):
+            entry = json.loads(line)
+            if not isinstance(entry, dict):
+                fail(f"invalid approval record entry at line {number}", 5)
+            entry_type = entry.get("entry_type")
+            if entry_type is None:
+                if not valid_exact_entry(entry):
+                    fail(f"invalid approval record entry at line {number}", 5)
+            elif entry_type not in {"proposal", "grant"}:
+                fail(f"invalid approval record entry at line {number}", 5)
+            entries.append(entry)
+    except (OSError, UnicodeError, json.JSONDecodeError) as error:
+        fail(f"cannot read approval record: {error}", 5)
+    return entries
+
+
 verb = sys.argv[1]
 worker = sys.argv[2]
-expected_token = sys.argv[4] if len(sys.argv) == 5 else None
+expected_token = sys.argv[4] if verb == "check" and len(sys.argv) >= 5 else None
+grant_token = sys.argv[6] if verb == "check" and len(sys.argv) == 7 else None
+root_argument = sys.argv[4] if verb == "propose" else None
+ops_argument = sys.argv[6] if verb == "propose" and len(sys.argv) == 7 else None
+proposal_digest = sys.argv[4] if verb == "grant" else None
+
 expected = None
 if expected_token is not None:
     try:
-        expected_text = base64.b64decode(
-            expected_token.encode("ascii"), altchars=b"-_", validate=True
-        ).decode("utf-8")
-        expected = json.loads(expected_text)
+        expected = json.loads(
+            base64.b64decode(expected_token.encode("ascii"), altchars=b"-_", validate=True).decode("utf-8")
+        )
         if not valid_approval(expected):
             raise ValueError("token does not contain a typed approval key")
     except (UnicodeError, ValueError, json.JSONDecodeError) as error:
         fail(f"invalid expected-command token: {error}", 2)
+
+expected_grant = None
+if grant_token is not None:
+    try:
+        expected_grant = json.loads(
+            base64.b64decode(grant_token.encode("ascii"), altchars=b"-_", validate=True).decode("utf-8")
+        )
+        if not valid_grant_shape(expected_grant):
+            raise ValueError("token does not contain a set grant")
+    except (UnicodeError, ValueError, json.JSONDecodeError) as error:
+        fail(f"invalid grant token: {error}", 2)
+
+if proposal_digest is not None and not re.fullmatch(r"[0-9a-f]{64}", proposal_digest):
+    fail("invalid proposal digest", 2)
+
+if ops_argument is not None:
+    parsed_operations = parse_operations(ops_argument)
+    if parsed_operations is None:
+        fail("invalid grant operations", 2)
+else:
+    parsed_operations = None
 
 cwd = Path.cwd()
 current_path = cwd / ".crew" / ".current"
@@ -279,54 +549,132 @@ if read_result.returncode != 0:
     fail("cannot read visible frame", 4)
 
 approval = extract_approval(read_result.stdout)
-canonical = json.dumps(approval, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
-encoded = base64.urlsafe_b64encode(canonical.encode("utf-8")).decode("ascii")
-digest = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+approval_digest = digest_json(approval)
 
 print(f"approval_kind={approval['kind']}")
-print(f"command_sha256={digest}")
-print(f"command_b64={encoded}")
+print(f"command_sha256={approval_digest}")
+print(f"command_b64={encoded_json(approval)}")
 
 if expected_token is not None:
-    if approval == expected:
-        print("outcome=expected-match")
-        raise SystemExit(0)
-    print("outcome=expected-mismatch")
-    raise SystemExit(1)
+    if approval != expected:
+        print("outcome=expected-mismatch")
+        raise SystemExit(1)
+    if expected_grant is not None:
+        if grant_covers(expected_grant, approval, cwd, run_dir):
+            print("outcome=expected-grant-match")
+            raise SystemExit(0)
+        print("outcome=expected-grant-mismatch")
+        raise SystemExit(1)
+    print("outcome=expected-match")
+    raise SystemExit(0)
 
 record_path = run_dir / "approvals.jsonl"
 relative_record = record_path.relative_to(cwd)
 
 if verb == "record":
-    entry = {"kind": approval["kind"], "key": approval["key"], "sha256": digest}
-    try:
-        with record_path.open("a", encoding="utf-8") as handle:
-            handle.write(json.dumps(entry, ensure_ascii=False, sort_keys=True) + "\n")
-            handle.flush()
-            os.fsync(handle.fileno())
-    except OSError as error:
-        fail(f"cannot append approval record: {error}", 5)
+    entry = {"kind": approval["kind"], "key": approval["key"], "sha256": approval_digest}
+    append_entry(record_path, entry)
     print(f"approval_record={relative_record}")
     print("outcome=recorded")
     raise SystemExit(0)
 
-entries: list[dict[str, object]] = []
-if record_path.exists():
-    try:
-        for number, line in enumerate(record_path.read_text(encoding="utf-8").splitlines(), 1):
-            entry = json.loads(line)
-            if not isinstance(entry, dict) or not valid_approval(
-                {"kind": entry.get("kind"), "key": entry.get("key")}
-            ):
-                fail(f"invalid approval record entry at line {number}", 5)
-            entries.append(entry)
-    except (OSError, UnicodeError, json.JSONDecodeError) as error:
-        fail(f"cannot read approval record: {error}", 5)
+if verb == "propose":
+    if approval["kind"] == "command" and ops_argument is not None:
+        fail("--ops is valid only for an edit grant", 2)
+    if approval["kind"] == "edit" and ops_argument is None:
+        fail("--ops is required for an edit grant", 2)
+    grant = derive_grant(approval, root_argument, parsed_operations, cwd, run_dir)
+    if grant is None:
+        fail("current approval is not covered by the proposed grant", 1)
+    payload = proposal_payload(approval, grant)
+    digest = digest_text(payload["grant_text"])
+    for existing in read_entries(record_path):
+        existing_grant = existing.get("grant")
+        if (
+            existing.get("entry_type") == "grant"
+            and existing_grant == grant
+            and existing.get("grant_text") == payload["grant_text"]
+            and isinstance(existing_grant, dict)
+            and grant_covers(existing_grant, approval, cwd, run_dir)
+        ):
+            print(f"approval_record={relative_record}")
+            print(f"grant_text={payload['grant_text']}")
+            print(f"proposal_sha256={digest}")
+            print("outcome=already-granted")
+            raise SystemExit(0)
+    entry = {"entry_type": "proposal", "proposal": payload, "proposal_sha256": digest}
+    append_entry(record_path, entry)
+    print(f"approval_record={relative_record}")
+    print(f"grant_text={payload['grant_text']}")
+    print(f"proposal_sha256={digest}")
+    print("outcome=proposed")
+    raise SystemExit(0)
+
+entries = read_entries(record_path)
+
+if verb == "grant":
+    matching: list[dict[str, object]] = []
+    for entry in entries:
+        if entry.get("entry_type") != "proposal" or entry.get("proposal_sha256") != proposal_digest:
+            continue
+        payload = entry.get("proposal")
+        if not isinstance(payload, dict) or set(payload) != {"approval", "grant", "grant_text"}:
+            continue
+        stored_approval = payload.get("approval")
+        stored_grant = payload.get("grant")
+        stored_text = payload.get("grant_text")
+        if (
+            not valid_approval(stored_approval)
+            or not valid_grant_shape(stored_grant)
+            or not isinstance(stored_text, str)
+            or stored_text != grant_text(stored_grant)
+            or digest_text(stored_text) != proposal_digest
+        ):
+            continue
+        matching.append(payload)
+    if not matching or any(payload != matching[0] for payload in matching[1:]):
+        fail("proposal digest is absent or ambiguous", 1)
+    payload = matching[0]
+    stored_grant = payload["grant"]
+    assert isinstance(stored_grant, dict)
+    stored_operations = stored_grant.get("operations") if stored_grant["kind"] == "edit" else None
+    recomputed = derive_grant(approval, stored_grant["root"], stored_operations, cwd, run_dir)
+    if approval != payload["approval"] or recomputed != stored_grant or proposal_payload(approval, recomputed) != payload:
+        fail("proposal does not match the current approval", 1)
+    grant_entry = {
+        "entry_type": "grant",
+        "grant": stored_grant,
+        "grant_text": payload["grant_text"],
+        "proposal_sha256": proposal_digest,
+    }
+    append_entry(record_path, grant_entry)
+    print(f"approval_record={relative_record}")
+    print(f"grant_text={payload['grant_text']}")
+    print(f"proposal_sha256={proposal_digest}")
+    print("outcome=grant-recorded")
+    raise SystemExit(0)
 
 print(f"approval_record={relative_record}")
-if any(entry["kind"] == approval["kind"] and entry["key"] == approval["key"] for entry in entries):
-    print("outcome=match")
-    raise SystemExit(0)
+for entry in entries:
+    if valid_exact_entry(entry) and entry["kind"] == approval["kind"] and entry["key"] == approval["key"]:
+        print("outcome=match")
+        raise SystemExit(0)
+for entry in entries:
+    if entry.get("entry_type") != "grant":
+        continue
+    grant = entry.get("grant")
+    text = entry.get("grant_text")
+    if (
+        isinstance(grant, dict)
+        and valid_grant_shape(grant)
+        and isinstance(text, str)
+        and text == grant_text(grant)
+        and grant_covers(grant, approval, cwd, run_dir)
+    ):
+        print(f"matched_grant_text={text}")
+        print(f"grant_b64={encoded_json(grant)}")
+        print("outcome=grant-match")
+        raise SystemExit(0)
 print("outcome=no-match")
 raise SystemExit(1)
 PY

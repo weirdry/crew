@@ -1,0 +1,6 @@
+{
+  "id": "approval-grant-broader-root-refused",
+  "script": "approval.sh",
+  "args": ["grant", "crew-worker", "--proposal", "f96380ec1fe5c97b95d6cbb4500fad4acaf01f547aff0a5c02e8357b55cf55b2", "--root", "/private"],
+  "expect": {"status": 2, "stderr_contains": ["usage:"], "calls_exact": []}
+}

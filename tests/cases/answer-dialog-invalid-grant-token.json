@@ -1,0 +1,6 @@
+{
+  "id": "answer-dialog-invalid-grant-token",
+  "script": "answer-dialog.sh",
+  "args": ["--expected-command-b64", "e30=", "--expected-grant-b64", "%%%", "crew-worker", "enter"],
+  "expect": {"status": 2, "stderr_contains": ["invalid expected-grant token"], "calls_exact": []}
+}
