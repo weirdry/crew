@@ -113,16 +113,21 @@ second model's opinion worth its cost.
 
 ## Status
 
-Early. The loop, the artifact protocol, and the escalation boundary are settled. Small helper
-scripts now carry the repeated run setup, partner attach-or-create, artifact check, and guarded
-key-send mechanics. Partner startup records workspace-scoped pane ownership and guarded,
-explicit retirement verifies that receipt before close;
-classification, approval authority, and verdicts remain with the lead.
-The `run-finish.sh` helper carries the run-ending step alongside them: it removes the active-run
-pointer at terminal Finishing and keeps it only for an open run.
+Early, and used for real: every commit since the license has been produced by a crew run, and
+the skill has run against a working repository outside its own. The loop, the artifact protocol,
+the escalation boundary, and the two lifetimes — a bounded run, a partner that outlives it —
+are settled.
 
-The helper test suite is documented in [`tests/README.md`](tests/README.md) and runs without a
-Herdr server. It deliberately excludes `run-init.sh`.
+Eight helper scripts carry the mechanics: run initialization and ending, partner attach-or-create
+and explicit retirement, the artifact check, the guarded key send, the typed approval record
+with user-visible set grants, and the external state root that keeps the lead's authority files
+where the worker cannot write them. Classification, approval authority, and verdicts stay with
+the lead. An offline suite of 156 cases pins the scripts' documented behaviour and runs with no
+Herdr server; it is documented in [`tests/README.md`](tests/README.md) and deliberately excludes
+`run-init.sh`'s Git wiring.
+
+Not yet verified against a live Claude worker: the Claude-layout dialog extractor and the
+state-root sandbox probe. Both are disclosed as such in `SKILL.md`.
 
 ## License
 
