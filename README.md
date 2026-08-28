@@ -81,6 +81,9 @@ letting two models argue indefinitely.
 agents render on the alternate screen, where output that scrolls away cannot be recovered at
 any `--lines` value. Every phase therefore writes an artifact file and replies with only its
 path. This also keeps long prompts out of shell quoting, and makes a run resumable.
+Lead-only pointers, pane ownership, and approval records live in a validated external state root,
+while worker-authored artifacts remain in the workspace. A worker therefore cannot forge a lead
+action without an escalated outside-workspace write.
 
 **Completion is proved by artifacts.** `agent prompt --wait` settles on lifecycle transitions,
 not turn boundaries — if the worker was already busy, a settle can report the previous turn

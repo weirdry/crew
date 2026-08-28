@@ -28,7 +28,7 @@ def replace(value: Any, values: dict[str, str]) -> Any:
     if isinstance(value, list):
         return [replace(item, values) for item in value]
     if isinstance(value, dict):
-        return {key: replace(item, values) for key, item in value.items()}
+        return {replace(key, values): replace(item, values) for key, item in value.items()}
     return value
 
 
@@ -145,17 +145,20 @@ def restore_permissions(root: Path) -> None:
 def run_case(scripts_dir: Path, case_path: Path) -> str:
     raw = json.loads(case_path.read_text(encoding="utf-8"))
     case_id = raw.get("id", case_path.stem)
-    temporary = Path(tempfile.mkdtemp(prefix=f"crew-test-{case_id}-"))
+    temporary = Path(tempfile.mkdtemp(prefix=f"crew-test-{case_id}-", dir="/var/tmp"))
     try:
         workspace = temporary / raw.get("workspace_basename", "workspace")
         workspace.mkdir(parents=True)
         normalized = re.sub(r"[^a-z0-9]+", "-", workspace.name.lower()).strip("-") or "workspace"
         normalized = normalized[:14].rstrip("-_") or "workspace"
         digest = hashlib.sha256(str(workspace.resolve()).encode("utf-8")).hexdigest()[:12]
+        workspace_key = f"{normalized}-{digest}"
+        state = (temporary / "state" / workspace_key).resolve(strict=False)
         command = raw.get("command", "")
         values = {
             "cwd": str(workspace.resolve()),
-            "derived_name": f"crew-{normalized}-{digest}",
+            "derived_name": f"crew-{workspace_key}",
+            "state": str(state),
             "command_b64": base64.urlsafe_b64encode(command.encode("utf-8")).decode("ascii"),
             "command_sha256": hashlib.sha256(command.encode("utf-8")).hexdigest(),
         }
@@ -174,6 +177,7 @@ def run_case(scripts_dir: Path, case_path: Path) -> str:
             raise CaseFailure(f"script is absent: {script}")
 
         environment = os.environ.copy()
+        environment["CREW_STATE_DIR"] = str(state.parent)
         environment.update(case.get("env", {}))
         environment["PATH"] = str(Path(__file__).parent / "bin") + os.pathsep + environment.get("PATH", "")
         environment["HERDR_STUB_FIXTURE"] = str(fixture_path)

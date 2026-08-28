@@ -6,6 +6,7 @@
 #   3  The active run or workspace partner ownership receipt was absent or invalid.
 #   4  Herdr state or a complete supported approval confirmation could not be read.
 #   5  The approval record could not be read or appended safely.
+#   6  The external state root was invalid or unusable.
 
 set -u
 
@@ -38,7 +39,14 @@ case "${1-}:$#" in
     ;;
 esac
 
-python3 - "$@" <<'PY'
+script_dir=${0%/*}
+if [ "$script_dir" = "$0" ]; then
+  script_dir=.
+fi
+state_json=$("$script_dir/state-root.sh") || exit 6
+state_root=$(python3 -c 'import json, sys; print(json.loads(sys.argv[1])["state_root"])' "$state_json") || exit 6
+
+CREW_RESOLVED_STATE_ROOT=$state_root python3 - "$@" <<'PY'
 from __future__ import annotations
 
 from pathlib import Path
@@ -424,6 +432,9 @@ def valid_exact_entry(entry: dict[str, object]) -> bool:
 
 def append_entry(record_path: Path, entry: dict[str, object]) -> None:
     try:
+        record_path.parent.mkdir(parents=True, exist_ok=True)
+        if os.path.lexists(record_path) and (record_path.is_symlink() or not record_path.is_file()):
+            fail(f"cannot append approval record: not a regular file: {record_path}", 5)
         with record_path.open("a", encoding="utf-8") as handle:
             handle.write(json.dumps(entry, ensure_ascii=False, sort_keys=True) + "\n")
             handle.flush()
@@ -433,8 +444,10 @@ def append_entry(record_path: Path, entry: dict[str, object]) -> None:
 
 
 def read_entries(record_path: Path) -> list[dict[str, object]]:
-    if not record_path.exists():
+    if not os.path.lexists(record_path):
         return []
+    if record_path.is_symlink() or not record_path.is_file():
+        fail(f"approval record is not a regular file: {record_path}", 5)
     entries: list[dict[str, object]] = []
     try:
         for number, line in enumerate(record_path.read_text(encoding="utf-8").splitlines(), 1):
@@ -494,17 +507,18 @@ else:
     parsed_operations = None
 
 cwd = Path.cwd()
-current_path = cwd / ".crew" / ".current"
+state_root = Path(os.environ["CREW_RESOLVED_STATE_ROOT"])
+current_path = state_root / ".current"
 try:
     current_lines = current_path.read_text(encoding="utf-8").splitlines()
 except (OSError, UnicodeError) as error:
     fail(f"cannot read active run: {error}", 3)
 if len(current_lines) != 1 or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}", current_lines[0]):
-    fail("invalid .crew/.current", 3)
+    fail(f"invalid active-run pointer: {current_path}", 3)
 
 run_id = current_lines[0]
 run_dir = cwd / ".crew" / run_id
-receipt_path = cwd / ".crew" / "worker.json"
+receipt_path = state_root / "worker.json"
 try:
     receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
 except (OSError, UnicodeError, json.JSONDecodeError) as error:
@@ -568,13 +582,12 @@ if expected_token is not None:
     print("outcome=expected-match")
     raise SystemExit(0)
 
-record_path = run_dir / "approvals.jsonl"
-relative_record = record_path.relative_to(cwd)
+record_path = state_root / run_id / "approvals.jsonl"
 
 if verb == "record":
     entry = {"kind": approval["kind"], "key": approval["key"], "sha256": approval_digest}
     append_entry(record_path, entry)
-    print(f"approval_record={relative_record}")
+    print(f"approval_record={record_path}")
     print("outcome=recorded")
     raise SystemExit(0)
 
@@ -597,14 +610,14 @@ if verb == "propose":
             and isinstance(existing_grant, dict)
             and grant_covers(existing_grant, approval, cwd, run_dir)
         ):
-            print(f"approval_record={relative_record}")
+            print(f"approval_record={record_path}")
             print(f"grant_text={payload['grant_text']}")
             print(f"proposal_sha256={digest}")
             print("outcome=already-granted")
             raise SystemExit(0)
     entry = {"entry_type": "proposal", "proposal": payload, "proposal_sha256": digest}
     append_entry(record_path, entry)
-    print(f"approval_record={relative_record}")
+    print(f"approval_record={record_path}")
     print(f"grant_text={payload['grant_text']}")
     print(f"proposal_sha256={digest}")
     print("outcome=proposed")
@@ -648,13 +661,13 @@ if verb == "grant":
         "proposal_sha256": proposal_digest,
     }
     append_entry(record_path, grant_entry)
-    print(f"approval_record={relative_record}")
+    print(f"approval_record={record_path}")
     print(f"grant_text={payload['grant_text']}")
     print(f"proposal_sha256={proposal_digest}")
     print("outcome=grant-recorded")
     raise SystemExit(0)
 
-print(f"approval_record={relative_record}")
+print(f"approval_record={record_path}")
 for entry in entries:
     if valid_exact_entry(entry) and entry["kind"] == approval["kind"] and entry["key"] == approval["key"]:
         print("outcome=match")

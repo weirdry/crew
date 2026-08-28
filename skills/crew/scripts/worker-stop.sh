@@ -8,6 +8,7 @@
 #   6  The receipt names the caller or lead as the worker pane; close refused.
 #   7  Herdr refused to close the verified partner pane.
 #   8  The verified partner receipt could not be removed after the pane closed.
+#   9  The external state root was invalid or unusable.
 
 set -u
 
@@ -21,13 +22,17 @@ if [ "${HERDR_ENV:-}" != 1 ] || [ -z "${HERDR_PANE_ID:-}" ]; then
   exit 3
 fi
 
-caller_cwd=$(python3 -c 'import os; print(os.getcwd())') || exit 4
+script_dir=${0%/*}
+if [ "$script_dir" = "$0" ]; then
+  script_dir=.
+fi
+state_json=$("$script_dir/state-root.sh") || exit 9
+state_root=$(python3 -c 'import json, sys; print(json.loads(sys.argv[1])["state_root"])' "$state_json") || exit 9
 receipt_json=$(python3 -c '
 from pathlib import Path
 import json, os, re, sys
 
-cwd = Path(sys.argv[1])
-receipt = cwd / ".crew" / "worker.json"
+receipt = Path(sys.argv[1]) / "worker.json"
 if not os.path.lexists(receipt) or receipt.is_symlink():
     raise SystemExit(f"partner ownership receipt is absent or unsafe: {receipt}")
 data = json.loads(receipt.read_text(encoding="utf-8"))
@@ -41,7 +46,7 @@ if (
     raise SystemExit(f"invalid partner ownership receipt: {receipt}")
 data["receipt_path"] = str(receipt)
 print(json.dumps(data, sort_keys=True))
-' "$caller_cwd") || exit 4
+' "$state_root") || exit 4
 
 receipt_field() {
   python3 -c '

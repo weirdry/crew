@@ -1,0 +1,6 @@
+{
+  "id": "run-init-state-root-tmpdir-refused",
+  "script": "run-init.sh",
+  "env": {"CREW_STATE_DIR": "/var/tmp/crew-state-test-tmpdir", "TMPDIR": "/var/tmp/crew-state-test-tmpdir"},
+  "expect": {"status": 7, "stderr_contains": ["refusing state root at or below worker-writable root"], "calls_exact": []}
+}

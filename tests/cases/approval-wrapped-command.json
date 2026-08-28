@@ -6,8 +6,8 @@
   "setup": {
     "dirs": [".crew/run-1"],
     "files": {
-      ".crew/.current": "run-1\n",
-      ".crew/worker.json": {"json": {"version": 1, "lead_pane_id": "lead-1", "worker_pane_id": "worker-1", "worker_name": "crew-worker", "worker_kind": "codex"}}
+      "{state}/.current": "run-1\n",
+      "{state}/worker.json": {"json": {"version": 1, "lead_pane_id": "lead-1", "worker_pane_id": "worker-1", "worker_name": "crew-worker", "worker_kind": "codex"}}
     }
   },
   "herdr": [

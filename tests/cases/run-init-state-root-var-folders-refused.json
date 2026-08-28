@@ -1,0 +1,6 @@
+{
+  "id": "run-init-state-root-var-folders-refused",
+  "script": "run-init.sh",
+  "env": {"CREW_STATE_DIR": "/var/folders/crew-state-test"},
+  "expect": {"status": 7, "stderr_contains": ["refusing state root at or below worker-writable root"], "calls_exact": []}
+}

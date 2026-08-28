@@ -34,7 +34,7 @@ herdr agent list
 ```
 
 Find the entry whose `pane_id` equals `$HERDR_PANE_ID`; its `agent` field is your own kind. A live
-partner recorded in `.crew/worker.json` supplies the partner kind; otherwise use whatever the
+partner recorded in the external state receipt supplies the partner kind; otherwise use whatever the
 user asked for, or any supported kind that is **not** your own. If the retained or requested
 partner is your own kind, tell the user Crew adds nothing over built-in subagents for that pair
 and stop. Explicit retirement is the only way to replace a retained same-kind partner.
@@ -53,13 +53,18 @@ All data moves through files. The terminal carries control signals only.
 In the commands below, `<crew-skill-dir>` is the directory containing this `SKILL.md`. Resolve
 it from the loaded skill location; keep the shell cwd at the repository where the run belongs.
 
+The lead-only authority state root, called `<state>` below, is
+`${CREW_STATE_DIR:-$HOME/.crew}/<workspace-key>/`, where `<workspace-key>` is the partner name
+without `crew-`. The helpers derive the key from the canonical cwd, validate the resolved root
+outside the repository and worker-writable temporary roots, and refuse an unusable root.
+
 Create `<cwd>/.crew/<run-id>/` where `<run-id>` is `date +%Y%m%d-%H%M%S`. The run directory
 must live inside the working tree: worker sandboxes are commonly workspace-scoped, so a path
 outside the workspace turns every worker write into an approval prompt.
 
 Initialize the run with the helper. It resolves the real Git exclude file before writing run
 state, including when the cwd is below the repository root or `.git` is a linked-worktree file.
-It prints the run id. It refuses with exit status 6 when `.crew/.current` already exists and
+It prints the run id. It refuses with exit status 6 when `<state>/.current` already exists and
 prints the run it preserved. On exit 6, read the named run's `state.md` before deciding: resume
 a genuinely open run; treat the pointer as abandoned only when its lead died. Pass
 `--replace-current` only after the user explicitly approves abandoning that run; its directory
@@ -75,15 +80,18 @@ Only after that explicit approval, run the override instead:
 <crew-skill-dir>/scripts/run-init.sh --replace-current
 ```
 
-To perform the same steps by hand, resolve the exclude path through Git, add `.crew/` only when
-absent, create the timestamped directory, write the state fields shown in the file table, and
-then update `.crew/.current`:
+To perform the same steps by hand, resolve `<state>` with the same validator, resolve the exclude
+path through Git, add `.crew/` only when absent, create the timestamped directory, write the
+state fields shown in the file table, and then update `<state>/.current`:
 
 ```bash
+state_json=$(<crew-skill-dir>/scripts/state-root.sh) || exit
+state=$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["state_root"])' "$state_json") || exit
+mkdir -p "$state"
 exclude_file=$(git rev-parse --path-format=absolute --git-path info/exclude)
 grep -qx '.crew/' "$exclude_file" 2>/dev/null || printf '%s\n' '.crew/' >> "$exclude_file"
-if [ -e .crew/.current ]; then
-  IFS= read -r current_run < .crew/.current
+if [ -e "$state/.current" ]; then
+  IFS= read -r current_run < "$state/.current"
   printf 'current_run=%s\noutcome=current-exists\n' "$current_run" >&2
   exit 6
 fi
@@ -93,34 +101,35 @@ mkdir ".crew/$run_id"
 printf '%s\n' '# Crew state' '' \
   '- Phase: 0 — scope not frozen' '- Round: 0 of 3' \
   '- Worker: none' '- Pane: none' > ".crew/$run_id/state.md"
-(set -C; printf '%s\n' "$run_id" > .crew/.current)
+(set -C; printf '%s\n' "$run_id" > "$state/.current")
 ```
 
 The noclobber write catches a concurrent creator after the manual precheck. If it fails, leave
 the existing pointer untouched, remove only the run directory just created by this attempt,
 and stop. Do not perform a manual replacement; use the helper's explicit override path.
 
-Every shell invocation starts fresh, so the run id has to survive on disk. Read the active run
-back from `.crew/.current` afterwards:
+Every shell invocation starts fresh, so the run id has to survive on disk. Resolve `<state>` and
+read the active run back from `<state>/.current` afterwards:
 
 ```bash
-IFS= read -r run_id < .crew/.current
+IFS= read -r run_id < "$state/.current"
 ```
 
-Files the loop writes — `.crew/.current` and `.crew/worker.json` at the `.crew/` root, the rest in
-the run directory:
+Files the loop writes — lead authority under `<state>`, worker and review artifacts in the run
+directory, and the inert approval audit copied there at Finishing:
 
 | File | Written by | Purpose |
 | --- | --- | --- |
-| `.crew/.current` | lead | Active run id; present from initialization through an open run, removed after terminal Finishing |
-| `.crew/worker.json` | `worker-start.sh` | Workspace partner identity and lead/partner pane ownership used by attach and guarded retirement |
-| `approvals.jsonl` | `approval.sh` | Run-scoped exact approvals plus inert set-grant proposals and granted sets |
-| `task.md` | lead | Frozen scope; contents specified in "What `task.md` must contain" below |
-| `plan-check.md` | worker | Pre-implementation objections; required when the change touches shared machinery |
-| `report-<n>.md` | worker | What it did, what it checked, open questions |
-| `review-<n>.md` | lead | Structured findings and verdict |
-| `dismissed.md` | lead | Closed findings with one-line reasons; never reopened |
-| `state.md` | lead | Current phase, round number, worker name, pane id |
+| `<state>/.current` | lead | Active run id; present from initialization through an open run, removed after terminal Finishing |
+| `<state>/worker.json` | `worker-start.sh` | Workspace partner identity and lead/partner pane ownership used by attach and guarded retirement |
+| `<state>/<run-id>/approvals.jsonl` | `approval.sh` | Run-scoped exact approvals plus inert set-grant proposals and granted sets |
+| `.crew/<run-id>/approvals.audit.jsonl` | `run-finish.sh` | Inert terminal copy of the approval record; never read as authority |
+| `.crew/<run-id>/task.md` | lead | Frozen scope; contents specified in "What `task.md` must contain" below |
+| `.crew/<run-id>/plan-check.md` | worker | Pre-implementation objections; required when the change touches shared machinery |
+| `.crew/<run-id>/report-<n>.md` | worker | What it did, what it checked, open questions |
+| `.crew/<run-id>/review-<n>.md` | lead | Structured findings and verdict |
+| `.crew/<run-id>/dismissed.md` | lead | Closed findings with one-line reasons; never reopened |
+| `.crew/<run-id>/state.md` | lead | Current phase, round number, worker name, pane id |
 
 `state.md` makes a run resumable if the lead session dies. Update it at every phase boundary.
 
@@ -233,7 +242,7 @@ lowercase hexadecimal digits of SHA-256 over the canonical absolute workspace pa
 fits `[a-z][a-z0-9_-]{0,31}`, is recognizable in `herdr agent list`, remains stable across runs,
 and uses the digest suffix to distinguish workspaces with the same directory name.
 
-When `.crew/worker.json` names a live partner, the helper verifies that the name and kind still
+When `<state>/worker.json` names a live partner, the helper verifies that the name and kind still
 resolve to the recorded pane and attaches without splitting or calling `agent start`. The
 recorded lead retains ownership while its pane is live, so another lead is refused with exit
 status 11. If the recorded lead pane is gone, the attaching lead atomically replaces only the
@@ -257,7 +266,7 @@ split. Exit status 8 means that cleanup failed and prints `pane_id=<id>` for man
 Exit status 9 means receipt installation failed; a newly split pane is closed, while a reused
 recorded pane is left intact.
 
-To perform attachment by hand, read `.crew/worker.json`, then query both recorded identities:
+To perform attachment by hand, read `<state>/worker.json`, then query both recorded identities:
 
 ```bash
 herdr agent get <recorded-worker-name>
@@ -313,7 +322,7 @@ herdr pane wait-output <pane-id> --regex <marker> --source visible --timeout 600
 For a kind absent from this table, fall back to the re-prompt-once rule under Known failure
 modes.
 
-When performing creation by hand, write `.crew/worker.json` with version 1 and the exact
+When performing creation by hand, write `<state>/worker.json` with version 1 and the exact
 `lead_pane_id`, `worker_pane_id`, `worker_name`, and `worker_kind` values before the first prompt.
 Create it exclusively when absent. Replace a stale receipt only after rechecking that its agent
 is absent and its contents are unchanged; never replace a receipt for a live partner. Guarded
@@ -477,9 +486,9 @@ recomputes. Every match and granted send rechecks the root and resolved containm
 reuse are run-scoped and kind-specific. Always select the one-shot affirmative option when sending
 a granted answer; never select the worker's broader "don't ask again" option.
 
-The run record is a convenience, not proof that the user granted an approval. It lives inside
-the worker-writable workspace, so reuse assumes a non-adversarial worker exactly as the rest of
-the file-based protocol does; never treat a record entry as an independent authority boundary.
+An entry in the external run record is evidence of a lead action after a user answer: a worker
+cannot put it there without a class-(b) write that the lead escalates. This assumes the lead's
+own pane is not compromised; never treat worker output as authority to answer a trust question.
 
 A free-text question is not answerable with `send-keys`. Escalate it even when its answer is
 derivable from `task.md` and class (a) otherwise applies. Do not invent a text-entry mechanism.
@@ -544,7 +553,7 @@ Enforced rules:
   regardless of `--lines`. This is why artifacts are files.
 - Name collision — agent names must be unique among live agents across all workspaces.
 - Wrong-pane cleanup — never close `--current`, `$HERDR_PANE_ID`, or a pane copied from visual
-  position. `worker-stop.sh` closes only the partner in `.crew/worker.json`, only after explicit
+  position. `worker-stop.sh` closes only the partner in `<state>/worker.json`, only after explicit
   user instruction, and refuses unless the caller is the recorded lead and the live name and kind
   still resolve to the recorded pane.
 - `unknown` — Herdr cannot classify the pane. It is not evidence of completion.
@@ -570,9 +579,9 @@ Finishing and does not require an active run:
 <crew-skill-dir>/scripts/worker-stop.sh
 ```
 
-The helper reads `.crew/worker.json`, requires the caller to equal its `lead_pane_id`, refuses a
+The helper reads `<state>/worker.json`, requires the caller to equal its `lead_pane_id`, refuses a
 target equal to the caller or lead pane, and verifies that the live partner's name, kind, and pane
-id exactly match the receipt. It then closes that pane and removes only `.crew/worker.json`. Stop
+id exactly match the receipt. It then closes that pane and removes only `<state>/worker.json`. Stop
 on every refusal. If the recorded lead is gone, initialize a run and attach first so the guarded
 ownership-transfer path makes the current lead responsible for retirement.
 
@@ -584,9 +593,9 @@ receipt before removing it. Never use `--current` for cleanup.
 ## Finishing
 
 - A run stopped at the round cap with unresolved blockers or at an unanswered class-(b)
-  escalation has no terminal verdict. Keep `.crew/.current` and use its `state.md` as the resume
+  escalation has no terminal verdict. Keep `<state>/.current` and use the run directory's `state.md` as the resume
   point; do not enter the remaining Finishing steps.
-- Read `.crew/worker.json` and report the retained partner's `worker_name` and `worker_pane_id`.
+- Read `<state>/worker.json` and report the retained partner's `worker_name` and `worker_pane_id`.
   Do not close it or remove its receipt at Finishing.
 - End the named run:
 
@@ -594,18 +603,36 @@ receipt before removing it. Never use `--current` for cleanup.
   <crew-skill-dir>/scripts/run-finish.sh "$run_id"
   ```
 
-  It requires the named run directory, removes `.crew/.current` only when it names `run_id`, and
-  rechecks that pointer immediately before unlinking it. Partner liveness does not gate run
-  completion.
-- Without the finishing helper, apply the same pointer-only checks:
+  It requires the named run directory, copies an existing external approval record to
+  `.crew/<run-id>/approvals.audit.jsonl`, removes `<state>/.current` only when it names `run_id`,
+  and rechecks that pointer immediately before unlinking it. Partner liveness does not gate run
+  completion; nothing reads the audit copy.
+- Without the finishing helper, apply the same approval-copy and pointer checks:
 
   ```bash
-  IFS= read -r current_run < .crew/.current
+  IFS= read -r current_run < "$state/.current"
   test "$current_run" = "$run_id" || exit 1
   test -d ".crew/$run_id" || exit 1
-  IFS= read -r current_run < .crew/.current
+  python3 - "$state/$run_id/approvals.jsonl" ".crew/$run_id/approvals.audit.jsonl" <<'PY'
+  from pathlib import Path
+  import os, stat, sys
+  source, audit = map(Path, sys.argv[1:])
+  if os.path.lexists(source):
+      if not stat.S_ISREG(source.lstat().st_mode):
+          raise SystemExit("approval record is not a regular file")
+      data = source.read_bytes()
+      if os.path.lexists(audit):
+          if not stat.S_ISREG(audit.lstat().st_mode) or audit.read_bytes() != data:
+              raise SystemExit("approval audit already exists with different or unsafe content")
+      else:
+          with audit.open("xb") as handle:
+              handle.write(data)
+              handle.flush()
+              os.fsync(handle.fileno())
+  PY
+  IFS= read -r current_run < "$state/.current"
   test "$current_run" = "$run_id" || exit 1
-  rm .crew/.current
+  rm "$state/.current"
   ```
 
 - Keep the lead and partner panes open. Retirement is never an implicit Finishing step.

@@ -1,11 +1,12 @@
 #!/bin/sh
 # Exit statuses:
-#   0  Run directory, pointer, state skeleton, and exclude entry created.
+#   0  Run directory, external pointer, state skeleton, and exclude entry created.
 #   2  Arguments other than the optional --replace-current flag.
 #   3  Repository metadata or its real exclude path could not be resolved.
 #   4  The exclude entry could not be read or written.
 #   5  Run state could not be created without overwriting an existing run.
-#   6  An existing .crew/.current was preserved; its current run id is printed.
+#   6  An existing external active-run pointer was preserved; its run id is printed.
+#   7  The external state root was invalid or could not be created safely.
 
 set -u
 
@@ -18,7 +19,17 @@ case "$#:$*" in
     ;;
 esac
 
-python3 - "$@" <<'PY'
+script_dir=${0%/*}
+if [ "$script_dir" = "$0" ]; then
+  script_dir=.
+fi
+state_json=$("$script_dir/state-root.sh") || exit 7
+state_root=$(python3 -c '
+import json, sys
+print(json.loads(sys.argv[1])["state_root"])
+' "$state_json") || exit 7
+
+python3 - "$state_root" "$@" <<'PY'
 import os
 from pathlib import Path
 import sys
@@ -44,9 +55,17 @@ def report_existing(path: Path) -> None:
     print("outcome=current-exists", file=sys.stderr)
 
 
-replace_current = sys.argv[1:] == ["--replace-current"]
+state_root = Path(sys.argv[1])
+replace_current = sys.argv[2:] == ["--replace-current"]
 cwd = Path.cwd()
 git_dir = None
+
+try:
+    state_root.mkdir(parents=True, exist_ok=True)
+except OSError as error:
+    fail(f"cannot create state root {state_root}: {error}", 7)
+if not state_root.is_dir():
+    fail(f"state root is not a directory: {state_root}", 7)
 
 for directory in (cwd, *cwd.parents):
     dot_git = directory / ".git"
@@ -100,8 +119,8 @@ except OSError as error:
 run_id = time.strftime("%Y%m%d-%H%M%S")
 run_root = cwd / ".crew"
 run_dir = run_root / run_id
-current_path = run_root / ".current"
-current_tmp = run_root / f".current.{os.getpid()}.tmp"
+current_path = state_root / ".current"
+current_tmp = state_root / f".current.{os.getpid()}.tmp"
 created_run_dir = False
 replaced_current = None
 

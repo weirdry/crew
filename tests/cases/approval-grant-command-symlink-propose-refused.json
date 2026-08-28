@@ -5,11 +5,11 @@
   "setup": {
     "dirs": [".crew/run-1", "fixtures", "outside"],
     "symlinks": {"fixtures/link": "{cwd}/outside"},
-    "files": {".crew/.current": "run-1\n", ".crew/worker.json": {"json": {"version": 1, "worker_pane_id": "worker-1", "worker_name": "crew-worker"}}}
+    "files": {"{state}/.current": "run-1\n", "{state}/worker.json": {"json": {"version": 1, "worker_pane_id": "worker-1", "worker_name": "crew-worker"}}}
   },
   "herdr": [
     {"argv": ["agent", "get", "crew-worker"], "results": [{"agent": {"pane_id": "worker-1", "agent_status": "blocked"}}]},
     {"argv": ["agent", "read", "crew-worker", "--source", "visible", "--lines", "200", "--format", "text"], "results": [{"stdout": "Would you like to run the following command?\n\n$ rm -rf -- {cwd}/fixtures/link/victim\n\n1. Yes\n2. No\n"}]}
   ],
-  "expect": {"status": 1, "stderr_contains": ["not covered by the proposed grant"], "absent": [".crew/run-1/approvals.jsonl"], "calls_exact": [["agent", "get", "crew-worker"], ["agent", "read", "crew-worker", "--source", "visible", "--lines", "200", "--format", "text"]]}
+  "expect": {"status": 1, "stderr_contains": ["not covered by the proposed grant"], "absent": ["{state}/run-1/approvals.jsonl"], "calls_exact": [["agent", "get", "crew-worker"], ["agent", "read", "crew-worker", "--source", "visible", "--lines", "200", "--format", "text"]]}
 }

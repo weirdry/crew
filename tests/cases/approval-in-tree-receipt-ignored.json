@@ -1,0 +1,17 @@
+{
+  "id": "approval-in-tree-receipt-ignored",
+  "script": "approval.sh",
+  "args": ["check", "crew-worker"],
+  "setup": {
+    "dirs": [".crew/run-1"],
+    "files": {
+      "{state}/.current": "run-1\n",
+      ".crew/worker.json": {"json": {"version": 1, "worker_pane_id": "worker-1", "worker_name": "crew-worker"}}
+    }
+  },
+  "expect": {
+    "status": 3,
+    "stderr_contains": ["cannot read workspace partner ownership receipt"],
+    "calls_exact": []
+  }
+}

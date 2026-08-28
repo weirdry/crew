@@ -6,9 +6,9 @@
     "dirs": [".crew/run-1", "fixtures", "outside"],
     "symlinks": {"fixtures/link": "{cwd}/outside"},
     "files": {
-      ".crew/.current": "run-1\n",
-      ".crew/worker.json": {"json": {"version": 1, "worker_pane_id": "worker-1", "worker_name": "crew-worker"}},
-      ".crew/run-1/approvals.jsonl": "{\"entry_type\":\"grant\",\"grant\":{\"kind\":\"edit\",\"operations\":[\"create\"],\"root\":\"{cwd}/fixtures\"},\"grant_text\":\"Allow edit dialogs for create where every destination is one safe resolved path at or below `{cwd}/fixtures`.\",\"proposal_sha256\":\"test\"}\n"
+      "{state}/.current": "run-1\n",
+      "{state}/worker.json": {"json": {"version": 1, "worker_pane_id": "worker-1", "worker_name": "crew-worker"}},
+      "{state}/run-1/approvals.jsonl": "{\"entry_type\":\"grant\",\"grant\":{\"kind\":\"edit\",\"operations\":[\"create\"],\"root\":\"{cwd}/fixtures\"},\"grant_text\":\"Allow edit dialogs for create where every destination is one safe resolved path at or below `{cwd}/fixtures`.\",\"proposal_sha256\":\"test\"}\n"
     }
   },
   "herdr": [

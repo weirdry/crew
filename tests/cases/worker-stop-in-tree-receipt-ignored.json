@@ -1,0 +1,15 @@
+{
+  "id": "worker-stop-in-tree-receipt-ignored",
+  "script": "worker-stop.sh",
+  "env": {"HERDR_ENV": "1", "HERDR_PANE_ID": "lead-1"},
+  "setup": {
+    "files": {
+      ".crew/worker.json": {"json": {"version": 1, "lead_pane_id": "lead-1", "worker_pane_id": "worker-1", "worker_name": "crew-worker", "worker_kind": "codex"}}
+    }
+  },
+  "expect": {
+    "status": 4,
+    "stderr_contains": ["partner ownership receipt is absent or unsafe"],
+    "calls_exact": []
+  }
+}

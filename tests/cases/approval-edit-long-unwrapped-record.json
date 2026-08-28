@@ -4,7 +4,7 @@
   "args": ["record", "crew-worker"],
   "setup": {
     "dirs": [".crew/run-1"],
-    "files": {".crew/.current": "run-1\n", ".crew/worker.json": {"json": {"version": 1, "worker_pane_id": "worker-1", "worker_name": "crew-worker"}}}
+    "files": {"{state}/.current": "run-1\n", "{state}/worker.json": {"json": {"version": 1, "worker_pane_id": "worker-1", "worker_name": "crew-worker"}}}
   },
   "herdr": [
     {"argv": ["agent", "get", "crew-worker"], "results": [{"agent": {"pane_id": "worker-1", "agent_status": "blocked"}}]},

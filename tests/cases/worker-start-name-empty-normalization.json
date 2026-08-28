@@ -4,7 +4,7 @@
   "script": "worker-start.sh",
   "args": ["other"],
   "env": {"HERDR_ENV": "1", "HERDR_PANE_ID": "lead-1"},
-  "setup": {"dirs": [".crew/run-1"], "files": {".crew/.current": "run-1\n"}},
+  "setup": {"dirs": [".crew/run-1"], "files": {"{state}/.current": "run-1\n"}},
   "herdr": [
     {"argv": ["agent", "list"], "results": [{"agents": [{"pane_id": "lead-1", "agent": "claude"}]}]},
     {"argv": ["agent", "get", "{derived_name}"], "results": [{"error": "agent_not_found"}]},

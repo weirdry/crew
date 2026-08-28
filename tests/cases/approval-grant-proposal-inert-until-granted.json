@@ -5,9 +5,9 @@
   "setup": {
     "dirs": [".crew/run-1"],
     "files": {
-      ".crew/.current": "run-1\n",
-      ".crew/worker.json": {"json": {"version": 1, "worker_pane_id": "worker-1", "worker_name": "crew-worker"}},
-      ".crew/run-1/approvals.jsonl": "{\"entry_type\": \"proposal\", \"proposal\": {\"approval\": {\"key\": \"rm -rf -- /private/tmp/grant-alpha\", \"kind\": \"command\"}, \"grant\": {\"kind\": \"command\", \"root\": \"/private/tmp\", \"template\": \"rm -rf -- {path}\"}, \"grant_text\": \"Allow command dialogs matching `rm -rf -- {path}` where `{path}` is one safe resolved path at or below `/private/tmp`.\"}, \"proposal_sha256\": \"f96380ec1fe5c97b95d6cbb4500fad4acaf01f547aff0a5c02e8357b55cf55b2\"}\n"
+      "{state}/.current": "run-1\n",
+      "{state}/worker.json": {"json": {"version": 1, "worker_pane_id": "worker-1", "worker_name": "crew-worker"}},
+      "{state}/run-1/approvals.jsonl": "{\"entry_type\": \"proposal\", \"proposal\": {\"approval\": {\"key\": \"rm -rf -- /private/tmp/grant-alpha\", \"kind\": \"command\"}, \"grant\": {\"kind\": \"command\", \"root\": \"/private/tmp\", \"template\": \"rm -rf -- {path}\"}, \"grant_text\": \"Allow command dialogs matching `rm -rf -- {path}` where `{path}` is one safe resolved path at or below `/private/tmp`.\"}, \"proposal_sha256\": \"f96380ec1fe5c97b95d6cbb4500fad4acaf01f547aff0a5c02e8357b55cf55b2\"}\n"
     }
   },
   "herdr": [

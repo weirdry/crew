@@ -14,6 +14,7 @@
 #  12  The retained or requested partner kind matches the caller's kind; Crew was refused.
 #  13  --create was requested while the recorded partner was live; creation was refused.
 #  14  The requested worker kind does not match the recorded partner kind.
+#  15  The external state root was invalid or unusable.
 
 set -u
 
@@ -42,30 +43,35 @@ if [ "${HERDR_ENV:-}" != 1 ] || [ -z "${HERDR_PANE_ID:-}" ]; then
   exit 3
 fi
 
-caller_cwd=$(python3 -c 'from pathlib import Path; print(Path.cwd().resolve())') || exit 3
+script_dir=${0%/*}
+if [ "$script_dir" = "$0" ]; then
+  script_dir=.
+fi
+state_json=$("$script_dir/state-root.sh") || exit 15
+caller_cwd=$(python3 -c 'import json, sys; print(json.loads(sys.argv[1])["cwd"])' "$state_json") || exit 15
+state_root=$(python3 -c 'import json, sys; print(json.loads(sys.argv[1])["state_root"])' "$state_json") || exit 15
+partner_name=$(python3 -c 'import json, sys; print(json.loads(sys.argv[1])["partner_name"])' "$state_json") || exit 15
 workspace_json=$(python3 -c '
 from pathlib import Path
-import hashlib, json, re, sys
+import json, re, sys
 
 cwd = Path(sys.argv[1])
-current = cwd / ".crew" / ".current"
+state_root = Path(sys.argv[2])
+current = state_root / ".current"
 try:
     lines = current.read_text(encoding="utf-8").splitlines()
 except (OSError, UnicodeError) as error:
     raise SystemExit(f"cannot read active run: {error}")
 if len(lines) != 1 or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}", lines[0]):
-    raise SystemExit("invalid .crew/.current")
+    raise SystemExit(f"invalid active-run pointer: {current}")
 run_dir = cwd / ".crew" / lines[0]
 if not run_dir.is_dir():
     raise SystemExit(f"active run directory does not exist: {run_dir}")
-workspace = re.sub(r"[^a-z0-9]+", "-", cwd.name.lower()).strip("-") or "workspace"
-workspace = workspace[:14].rstrip("-_") or "workspace"
-digest = hashlib.sha256(str(cwd).encode("utf-8")).hexdigest()[:12]
 print(json.dumps({
-    "derived_name": f"crew-{workspace}-{digest}",
-    "receipt_path": str(cwd / ".crew" / "worker.json"),
+    "derived_name": sys.argv[3],
+    "receipt_path": str(state_root / "worker.json"),
 }, sort_keys=True))
-' "$caller_cwd") || exit 3
+' "$caller_cwd" "$state_root" "$partner_name") || exit 3
 
 json_field() {
   python3 -c '

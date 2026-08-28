@@ -6,8 +6,8 @@
   "setup": {
     "dirs": [".crew/run-1"],
     "files": {
-      ".crew/.current": "run-1\n",
-      ".crew/worker.json": {"json": {"version": 1, "lead_pane_id": "lead-old", "worker_pane_id": "worker-1", "worker_name": "crew-worker", "worker_kind": "codex"}}
+      "{state}/.current": "run-1\n",
+      "{state}/worker.json": {"json": {"version": 1, "lead_pane_id": "lead-old", "worker_pane_id": "worker-1", "worker_name": "crew-worker", "worker_kind": "codex"}}
     }
   },
   "herdr": [
@@ -19,6 +19,6 @@
     "status": 0,
     "stdout_contains": ["outcome=attached", "ownership=transferred"],
     "calls_exact": [["agent", "list"], ["agent", "get", "crew-worker"], ["pane", "get", "lead-old"]],
-    "json_files": {".crew/worker.json": {"version": 1, "lead_pane_id": "lead-new", "worker_pane_id": "worker-1", "worker_name": "crew-worker", "worker_kind": "codex"}}
+    "json_files": {"{state}/worker.json": {"version": 1, "lead_pane_id": "lead-new", "worker_pane_id": "worker-1", "worker_name": "crew-worker", "worker_kind": "codex"}}
   }
 }

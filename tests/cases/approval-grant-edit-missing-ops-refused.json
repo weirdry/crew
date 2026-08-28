@@ -2,7 +2,7 @@
   "id": "approval-grant-edit-missing-ops-refused",
   "script": "approval.sh",
   "args": ["propose", "crew-worker", "--root", "/private/tmp"],
-  "setup": {"dirs": [".crew/run-1"], "files": {".crew/.current": "run-1\n", ".crew/worker.json": {"json": {"version": 1, "worker_pane_id": "worker-1", "worker_name": "crew-worker"}}}},
+  "setup": {"dirs": [".crew/run-1"], "files": {"{state}/.current": "run-1\n", "{state}/worker.json": {"json": {"version": 1, "worker_pane_id": "worker-1", "worker_name": "crew-worker"}}}},
   "herdr": [
     {"argv": ["agent", "get", "crew-worker"], "results": [{"agent": {"pane_id": "worker-1", "agent_status": "blocked"}}]},
     {"argv": ["agent", "read", "crew-worker", "--source", "visible", "--lines", "200", "--format", "text"], "results": [{"stdout": "────────────\n• Edited /private/tmp/a.txt (+1 -1)\n\nWould you like to make the following edits?\nDestination: /private/tmp/a.txt\n\n1. Yes\n2. No\n"}]}

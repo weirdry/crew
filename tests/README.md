@@ -15,6 +15,13 @@ writes only the files declared by that case, prepends `tests/bin/` to the existi
 the named helper, and checks its status, output, files, and recorded Herdr calls. Temporary
 workspaces are removed after each case, including failures.
 
+A case's lead authority state — the active-run pointer, the partner receipt, the approval record
+— lives under `{state}`, a sibling of the case workspace, exported to the script as
+`CREW_STATE_DIR`'s per-workspace child. Case roots are created under `/var/tmp` rather than the
+system temporary directory because the helpers refuse a state root at or below `$TMPDIR` or
+`/var/folders`; the same refusal means the suite cannot run inside a worker sandbox that cannot
+write `/var/tmp`, which is why a worker running it raises a dialog.
+
 The `herdr` stub matches the complete subcommand and arguments. A fixture declares ordered
 results for repeated identical calls and may attach a deterministic local-file side effect to a
 specific result; undeclared calls and exhausted results fail. Every invocation is appended to a

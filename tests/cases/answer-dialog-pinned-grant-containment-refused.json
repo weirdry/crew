@@ -2,7 +2,7 @@
   "id": "answer-dialog-pinned-grant-containment-refused",
   "script": "answer-dialog.sh",
   "args": ["--expected-command-b64", "eyJrZXkiOiJybSAtcmYgLS0gL3ByaXZhdGUvdG1wL2dyYW50LWFscGhhIiwia2luZCI6ImNvbW1hbmQifQ==", "--expected-grant-b64", "eyJraW5kIjoiY29tbWFuZCIsInJvb3QiOiIvcHJpdmF0ZS92YXIvdG1wIiwidGVtcGxhdGUiOiJybSAtcmYgLS0ge3BhdGh9In0=", "crew-worker", "enter"],
-  "setup": {"dirs": [".crew/run-1"], "files": {".crew/.current": "run-1\n", ".crew/worker.json": {"json": {"version": 1, "worker_pane_id": "worker-1", "worker_name": "crew-worker"}}}},
+  "setup": {"dirs": [".crew/run-1"], "files": {"{state}/.current": "run-1\n", "{state}/worker.json": {"json": {"version": 1, "worker_pane_id": "worker-1", "worker_name": "crew-worker"}}}},
   "herdr": [
     {"argv": ["agent", "get", "crew-worker"], "results": [
       {"agent": {"pane_id": "worker-1", "agent_status": "blocked", "state_change_seq": 10}},

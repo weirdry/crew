@@ -2,11 +2,11 @@
   "id": "run-finish-status-5-run-absent",
   "script": "run-finish.sh",
   "args": ["run-1"],
-  "setup": {"files": {".crew/.current": "run-1\n"}},
+  "setup": {"files": {"{state}/.current": "run-1\n"}},
   "expect": {
     "status": 5,
     "stderr_contains": ["active run directory does not exist"],
     "calls_exact": [],
-    "files": {".crew/.current": "run-1\n"}
+    "files": {"{state}/.current": "run-1\n"}
   }
 }

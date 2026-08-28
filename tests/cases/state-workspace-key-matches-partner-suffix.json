@@ -1,0 +1,22 @@
+{
+  "id": "state-workspace-key-matches-partner-suffix",
+  "script": "worker-start.sh",
+  "args": ["codex"],
+  "env": {"HERDR_ENV": "1", "HERDR_PANE_ID": "lead-1"},
+  "setup": {
+    "dirs": [".crew/run-1"],
+    "files": {
+      "{state}/.current": "run-1\n",
+      "{state}/worker.json": {"json": {"version": 1, "lead_pane_id": "lead-1", "worker_pane_id": "worker-1", "worker_name": "{derived_name}", "worker_kind": "codex"}}
+    }
+  },
+  "herdr": [
+    {"argv": ["agent", "list"], "results": [{"agents": [{"pane_id": "lead-1", "agent": "claude"}]}]},
+    {"argv": ["agent", "get", "{derived_name}"], "results": [{"agent": {"name": "{derived_name}", "pane_id": "worker-1", "agent": "codex"}}]}
+  ],
+  "expect": {
+    "status": 0,
+    "stdout_contains": ["partner_name={derived_name}", "ownership_receipt={state}/worker.json"],
+    "calls_exact": [["agent", "list"], ["agent", "get", "{derived_name}"]]
+  }
+}

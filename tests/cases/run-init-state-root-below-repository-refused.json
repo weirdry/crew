@@ -1,0 +1,6 @@
+{
+  "id": "run-init-state-root-below-repository-refused",
+  "script": "run-init.sh",
+  "env": {"CREW_STATE_DIR": "{cwd}/nested"},
+  "expect": {"status": 7, "stderr_contains": ["refusing state root at or below worker-writable root"], "calls_exact": []}
+}

@@ -1,0 +1,22 @@
+{
+  "id": "run-finish-approval-audit-copy",
+  "script": "run-finish.sh",
+  "args": ["run-1"],
+  "setup": {
+    "dirs": [".crew/run-1"],
+    "files": {
+      "{state}/.current": "run-1\n",
+      "{state}/run-1/approvals.jsonl": "{\"key\":\"rm -rf -- /private/tmp/target\",\"kind\":\"command\"}\n"
+    }
+  },
+  "expect": {
+    "status": 0,
+    "stdout_contains": ["approval_audit=.crew/run-1/approvals.audit.jsonl", "removed_pointer={state}/.current"],
+    "files": {
+      ".crew/run-1/approvals.audit.jsonl": "{\"key\":\"rm -rf -- /private/tmp/target\",\"kind\":\"command\"}\n",
+      "{state}/run-1/approvals.jsonl": "{\"key\":\"rm -rf -- /private/tmp/target\",\"kind\":\"command\"}\n"
+    },
+    "absent": ["{state}/.current"],
+    "calls_exact": []
+  }
+}

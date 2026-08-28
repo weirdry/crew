@@ -5,8 +5,8 @@
   "env": {"HERDR_ENV": "1", "HERDR_PANE_ID": "lead-1"},
   "setup": {
     "dirs": [".crew/run-1"],
-    "files": {".crew/.current": "run-1\n", ".crew/real-worker.json": "{}\n"},
-    "symlinks": {".crew/worker.json": "real-worker.json"}
+    "files": {"{state}/.current": "run-1\n", ".crew/real-worker.json": "{}\n"},
+    "symlinks": {"{state}/worker.json": "real-worker.json"}
   },
   "herdr": [{"argv": ["agent", "list"], "results": [{"agents": [{"pane_id": "lead-1", "agent": "claude"}]}]}],
   "expect": {

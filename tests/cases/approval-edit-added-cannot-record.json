@@ -5,8 +5,8 @@
   "setup": {
     "dirs": [".crew/run-1"],
     "files": {
-      ".crew/.current": "run-1\n",
-      ".crew/worker.json": {"json": {"version": 1, "worker_pane_id": "worker-1", "worker_name": "crew-worker"}}
+      "{state}/.current": "run-1\n",
+      "{state}/worker.json": {"json": {"version": 1, "worker_pane_id": "worker-1", "worker_name": "crew-worker"}}
     }
   },
   "herdr": [
@@ -17,7 +17,7 @@
     "status": 0,
     "stdout_contains": ["approval_kind=edit", "outcome=recorded", "command_b64="],
     "json_files": {
-      ".crew/run-1/approvals.jsonl": {
+      "{state}/run-1/approvals.jsonl": {
         "key": {"destinations": ["/private/tmp/edit-a.txt"], "operation": "create"},
         "kind": "edit",
         "sha256": "837f885de6080aa96dacbba1e2b58d7bd365756ae4a2bc524824a053bc8df229"

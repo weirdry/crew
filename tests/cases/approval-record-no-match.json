@@ -5,9 +5,9 @@
   "setup": {
     "dirs": [".crew/run-1"],
     "files": {
-      ".crew/.current": "run-1\n",
-      ".crew/worker.json": {"json": {"version": 1, "worker_pane_id": "worker-1", "worker_name": "crew-worker"}},
-      ".crew/run-1/approvals.jsonl": "{\"key\": \"echo other\", \"kind\": \"command\"}\n"
+      "{state}/.current": "run-1\n",
+      "{state}/worker.json": {"json": {"version": 1, "worker_pane_id": "worker-1", "worker_name": "crew-worker"}},
+      "{state}/run-1/approvals.jsonl": "{\"key\": \"echo other\", \"kind\": \"command\"}\n"
     }
   },
   "herdr": [
