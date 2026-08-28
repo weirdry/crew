@@ -9,8 +9,9 @@ Crew pairs you (the **lead**) with a **worker** agent of a different model kind.
 scoping, supervision, review, and the decision to stop. The worker owns implementation.
 
 A **run** is one bounded collaboration with frozen scope, at most three rounds, and one verdict.
-The worker is the workspace's **partner**: it keeps its context across runs and remains live until
-the user explicitly asks to retire it.
+The worker is the workspace's **partner**: it remains live until the user explicitly asks to retire it,
+and keeps its context across runs until a Herdr server restart or its own context compaction
+discards it — neither of which the lead controls.
 
 The value of this arrangement is exactly one thing: the reviewer and the author have different
 failure patterns. If both agents are the same model kind, that value is gone and the host
@@ -135,6 +136,12 @@ Write these sections, in this order:
 
 Add `## Context`, `## Item <n>`, or `## Likely files touched` when the work needs them, and
 `## Amendments` last when the user accepts a phase 1 finding.
+
+When the run edits a helper the lead uses to supervise it — `approval.sh`, `answer-dialog.sh` —
+`task.md` says so in three clauses: the lead will not call that helper during the run and answers
+dialogs by hand; the worker proves what refuses, through its own verifier; the lead proves what
+sends, in phase 4, on the final source. Without them the worker has no way to satisfy a live
+send criterion except by inspecting the lead.
 
 `## Out of scope` names every category that applies to the run, and always these:
 
@@ -546,6 +553,13 @@ Enforced rules:
   another workspace whose lead still holds the previous `SKILL.md` in context. If a helper's
   behaviour contradicts this document mid-run, check the skill repository's log before
   diagnosing the run.
+- Discarded stderr — `herdr agent prompt ... --timeout` without `--wait` is a usage error, and
+  with stderr sent to `/dev/null` it looks exactly like a dropped prompt. Never discard the
+  stderr of a `herdr` call that moves the run; read the result before concluding anything.
+- Sandboxed retry after a denial — after `esc` the pane may show `✗ You canceled ...` and then
+  `• Ran ...` as the worker re-runs the same command under its own sandbox. The denial ends
+  only the unsandboxed request; the sandbox policy decides the rest. After denying a
+  destructive command, verify the target before reporting that nothing happened.
 
 ## Retiring the partner
 

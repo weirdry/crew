@@ -4,7 +4,8 @@ An agent skill for **bounded multi-model collaboration** inside [Herdr](https://
 
 One agent acts as **lead**: it scopes bounded runs and delegates implementation to a retained
 **partner** — the worker agent of a different model kind in a sibling Herdr pane — supervises and
-reviews that partner, and keeps its context across runs until explicit retirement.
+reviews that partner, and keeps its context across runs — bounded by the Herdr server's
+lifetime and the agent's own context window — until explicit retirement.
 
 Either side can be either product. Install it wherever you start sessions from — the skill
 detects its own agent kind at runtime and picks a different kind for the worker.
