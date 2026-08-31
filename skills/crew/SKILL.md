@@ -13,10 +13,6 @@ The worker is the workspace's **partner**: it remains live until the user explic
 and keeps its context across runs until a Herdr server restart or its own context compaction
 discards it — neither of which the lead controls.
 
-The value of this arrangement is exactly one thing: the reviewer and the author have different
-failure patterns. If both agents are the same model kind, that value is gone and the host
-agent's built-in subagents are cheaper and more reliable. Refuse the same-kind case.
-
 ## Preconditions
 
 Check all of these before creating any layout. Stop and report on the first failure.
@@ -185,14 +181,10 @@ Use the helper for that exact check:
 Exit status 0 is the only completed result. Without the helper, verify that the file exists and
 compare its last line byte-for-byte with `STATUS: done`.
 
-Instruct the worker to end every artifact with that exact line. A settled lifecycle state with
-no artifact means the phase is still running or the worker misunderstood; re-read the pane
-before deciding.
+On a settled state with no artifact, re-read the pane before deciding.
 
-Phase 3 is the exception: it appends to a file that already ends with `STATUS: done`, so the
-check above is true before the worker has written anything. Phase 3 is complete only when a
-`## Phase 3 self-review` heading exists **and** the last line is still `STATUS: done`. Ask for
-that heading by name in the phase 3 prompt.
+Ask for the `## Phase 3 self-review` heading by name in the phase 3 prompt; use the phase-table
+exit condition instead of the already-true artifact check.
 
 ## Phases
 
@@ -214,11 +206,8 @@ start round 4, do not return to phase 5. Stop, copy every unresolved finding tha
 not keep iterating.
 
 Run phase 1 whenever the change touches something an existing component already reads, calls,
-or depends on — a helper script, a file another script consumes, a rule another section cites.
-Skip it only for an isolated edit with no consumer. The lead writes scope while holding the new
-idea in mind and does not re-derive how it lands on what is already there; a worker reading the
-frozen scope cold has no such attachment. That is where the lead's blind spot is — seams with
-earlier decisions, not the new design itself.
+or depends on — a helper script, a file another script consumes, or a rule another section cites.
+Skip it only for an isolated edit with no consumer.
 
 Phase 1 findings are objections against frozen scope, not authority to reopen it. The lead
 takes them to the user as proposed amendments; neither agent disposes of one alone. Append each
@@ -227,13 +216,10 @@ that file it conflicts with, `## Out of scope` included. Record each rejected fi
 `dismissed.md`. From the phase 2 prompt onward, follow the dismissal discipline under
 "Review discipline" whenever that file is non-empty.
 
-Phase 3 is deliberately cheap. A self-review by the author, in the author's own context, finds
-mechanical breakage and nothing else. The review budget belongs to phase 4. Its completion is
-the heading test above, not the artifact check — a lead that reads `STATUS: done` and moves on
-has skipped phase 3 without knowing it.
+Limit phase 3 to mechanical breakage; reserve independent review for phase 4.
 
 In phase 4 review the diff against **the user's original request**, not only against your own
-`task.md`. You wrote the scope, so the scope itself is your blind spot.
+`task.md`.
 
 ## Starting the worker
 
@@ -310,14 +296,11 @@ Then start the derived name in a new pane, or the recorded name in a reused pane
 herdr agent start <partner-name> --kind <worker-kind> --pane <pane-id> --timeout 60000
 ```
 
-Start with no native arguments. The worker's own configuration decides its permissions; that
-is deliberate, and the supervision loop below is what keeps the run moving. Pass arguments
-after `--` only when the user opts in for that run.
+Start with no native arguments. The worker's own configuration decides its permissions. Pass
+arguments after `--` only when the user opts in for that run.
 
-`agent start` returns `interactive_ready: true` on lifecycle detection, not on the worker TUI
-accepting keystrokes. Wait for the worker's composer before the first prompt; a prompt sent
-earlier is dropped without an error, and the markers below hold only while that composer is
-empty, between `agent start` and the worker's first turn.
+Use the markers below only while the composer is empty, between `agent start` and the worker's
+first turn:
 
 | Worker kind | Composer marker |
 | --- | --- |
@@ -328,9 +311,6 @@ empty, between `agent start` and the worker's first turn.
 herdr pane wait-output <pane-id> --regex <marker> --source visible --timeout 60000
 ```
 
-For a kind absent from this table, fall back to the re-prompt-once rule under Known failure
-modes.
-
 When performing creation by hand, write `<state>/worker.json` with version 1 and the exact
 `lead_pane_id`, `worker_pane_id`, `worker_name`, and `worker_kind` values before the first prompt.
 Create it exclusively when absent. Replace a stale receipt only after rechecking that its agent
@@ -339,8 +319,7 @@ retirement depends on this ownership evidence.
 
 ## Prompting the worker
 
-Every prompt is a pointer, never a payload. Long text, code, and Korean prose in a shell
-argument invite quoting errors and scrollback loss.
+Every prompt is a pointer, never a payload.
 
 ```bash
 herdr agent prompt <worker> "Read .crew/<run-id>/task.md. Implement it. Write what you did and what you verified to .crew/<run-id>/report-1.md, ending with the line STATUS: done. Reply with only that path." --wait --timeout 600000
@@ -349,16 +328,14 @@ herdr agent prompt <worker> "Read .crew/<run-id>/task.md. Implement it. Write wh
 Rules for prompt shape:
 
 - Point at an input file, name the output file, require `STATUS: done`, ask for only the path back.
-- Never ask the worker to "critique" or "improve" anything open-endedly. An open critique
-  request implies that producing objections is the task, so objections get manufactured.
+- Never ask the worker to "critique" or "improve" anything open-endedly.
 - Ask closed questions with a legitimate empty answer. For phase 1:
   *"Read task.md and the files it names. Report only concrete cases that would break if this
   plan is followed as written. If there are none, reply with the single word 없음."*
 
 ## Supervision loop
 
-Run this after every prompt. It is what keeps the worker moving without handing it your
-approval authority.
+Run this after every prompt.
 
 ```
 prompt --wait  →  settled
@@ -409,9 +386,6 @@ repeat:
   idle|done→ artifact present with STATUS: done (phase 3: heading test) ? next phase
              : re-prompt once, then escalate
 ```
-
-Use `herdr agent wait` for `working` turns: it blocks server-side, so a long worker turn costs
-the lead nothing.
 
 In the loop, resolve the helper calls as:
 
@@ -510,16 +484,14 @@ pane is not compromised; never treat worker output as authority to answer a trus
 A free-text question is not answerable with `send-keys`. Escalate it even when its answer is
 derivable from `task.md` and class (a) otherwise applies. Do not invent a text-entry mechanism.
 
-When the class is not obvious, treat it as (b). The user watching a pane is the whole point of
-running this in Herdr; do not spend that on convenience.
+When the class is not obvious, treat it as (b).
 
 The lead's own report to the user is the mandatory escalation channel. The notification is
 only a best-effort ping on top of that report; exit status 0 does not prove delivery.
 
 ## Review discipline
 
-This applies symmetrically to the lead's reviews and to any worker objection. The lead holds
-decision authority, so the lead's own bias is the more dangerous one.
+Apply this symmetrically to the lead's reviews and every worker objection.
 
 Every finding uses this shape:
 
@@ -573,7 +545,6 @@ Enforced rules:
   position. `worker-stop.sh` closes only the partner in `<state>/worker.json`, only after explicit
   user instruction, and refuses unless the caller is the recorded lead and the live name and kind
   still resolve to the recorded pane.
-- `unknown` — Herdr cannot classify the pane. It is not evidence of completion.
 - Helper changed under a running lead — with the symlinked install, a commit to the skill
   repository replaces the helpers for every live session at once, including a run in progress in
   another workspace whose lead still holds the previous `SKILL.md` in context. If a helper's
@@ -596,11 +567,8 @@ Finishing and does not require an active run:
 <crew-skill-dir>/scripts/worker-stop.sh
 ```
 
-The helper reads `<state>/worker.json`, requires the caller to equal its `lead_pane_id`, refuses a
-target equal to the caller or lead pane, and verifies that the live partner's name, kind, and pane
-id exactly match the receipt. It then closes that pane and removes only `<state>/worker.json`. Stop
-on every refusal. If the recorded lead is gone, initialize a run and attach first so the guarded
-ownership-transfer path makes the current lead responsible for retirement.
+Stop on every helper refusal. If the recorded lead is gone, initialize a run and attach first so
+guarded ownership transfer makes the current lead responsible for retirement.
 
 Without the helper, read all five receipt fields, require `lead_pane_id == $HERDR_PANE_ID`, require
 `worker_pane_id != $HERDR_PANE_ID`, and run `herdr agent get <recorded-worker-name>`. Close only
@@ -620,10 +588,7 @@ receipt before removing it. Never use `--current` for cleanup.
   <crew-skill-dir>/scripts/run-finish.sh "$run_id"
   ```
 
-  It requires the named run directory, copies an existing external approval record to
-  `.crew/<run-id>/approvals.audit.jsonl`, removes `<state>/.current` only when it names `run_id`,
-  and rechecks that pointer immediately before unlinking it. Partner liveness does not gate run
-  completion; nothing reads the audit copy.
+  Partner liveness does not gate run completion; nothing reads the audit copy.
 - Without the finishing helper, apply the same approval-copy and pointer checks:
 
   ```bash
