@@ -1,0 +1,74 @@
+{
+  "args": [
+    "--json"
+  ],
+  "setup": {
+    "files": {
+      "{state}/.current": "run-1\n",
+      "{state}/worker.json": {
+        "json": {
+          "version": 1,
+          "lead_pane_id": "lead-1",
+          "worker_pane_id": "worker-1",
+          "worker_name": "crew-worker",
+          "worker_kind": "claude"
+        }
+      },
+      "{state}/run-1/approvals.jsonl": "DO_NOT_PRINT_SESSION_SECRET\n",
+      ".crew/run-1/state.md": "# Crew state\n\n- Phase: 2\n- Round: 1 of 3\n- Worker: crew-worker\n- Pane: worker-1\n",
+      ".crew/run-1/review-1.md": "Review evidence.\nVerdict: approve\n",
+      ".git/info/exclude": ".crew/\n",
+      "source.txt": "unchanged source\n"
+    }
+  },
+  "herdr": [
+    {
+      "argv": [
+        "agent",
+        "get",
+        "crew-worker"
+      ],
+      "results": [
+        {
+          "agent": {
+            "name": "crew-worker",
+            "agent": "claude",
+            "pane_id": "worker-1",
+            "agent_status": "done"
+          }
+        }
+      ]
+    }
+  ],
+  "expect": {
+    "status": 1,
+    "calls_exact": [
+      [
+        "agent",
+        "get",
+        "crew-worker"
+      ]
+    ],
+    "stdout_json_paths": {
+      "run.availability": "present",
+      "run.id": "run-1",
+      "run.phase": 2,
+      "run.round": 1,
+      "partner.record": "present",
+      "partner.observation": "live",
+      "partner.agent_status": "done",
+      "artifacts.latest_review.verdict": "approve",
+      "artifacts.latest_completed_report": null,
+      "artifacts.latest_report": null
+    },
+    "stdout_contains": [
+      "report-unconfirmed"
+    ],
+    "stdout_absent": [
+      "DO_NOT_PRINT_SESSION_SECRET"
+    ]
+  },
+  "id": "status-settled-without-report",
+  "script": "status.sh",
+  "read_only": true
+}

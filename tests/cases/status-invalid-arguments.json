@@ -1,0 +1,18 @@
+{
+  "args": [
+    "--resume"
+  ],
+  "expect": {
+    "status": 2,
+    "calls_exact": [],
+    "stderr_contains": [
+      "usage: status.sh [--json]"
+    ],
+    "stdout_absent": [
+      "DO_NOT_PRINT_SESSION_SECRET"
+    ]
+  },
+  "id": "status-invalid-arguments",
+  "script": "status.sh",
+  "read_only": true
+}

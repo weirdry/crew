@@ -1,0 +1,19 @@
+{
+  "expect": {
+    "status": 0,
+    "calls_exact": [],
+    "stdout_contains": [
+      "Run: none",
+      "Recorded progress: phase unknown",
+      "Partner record: absent",
+      "Live observation: not-queried",
+      "not a completion verdict"
+    ],
+    "stdout_absent": [
+      "DO_NOT_PRINT_SESSION_SECRET"
+    ]
+  },
+  "id": "status-no-run-text",
+  "script": "status.sh",
+  "read_only": true
+}

@@ -1,0 +1,61 @@
+{
+  "args": [
+    "--json"
+  ],
+  "setup": {
+    "files": {
+      "{state}/worker.json": {
+        "json": {
+          "version": 1,
+          "lead_pane_id": "lead-1",
+          "worker_pane_id": "worker-1",
+          "worker_name": "crew-worker",
+          "worker_kind": "claude"
+        }
+      }
+    }
+  },
+  "herdr": [
+    {
+      "argv": [
+        "agent",
+        "get",
+        "crew-worker"
+      ],
+      "results": [
+        {
+          "agent": {
+            "name": "crew-worker",
+            "agent": "claude",
+            "pane_id": "worker-1",
+            "agent_status": "working"
+          }
+        }
+      ]
+    }
+  ],
+  "expect": {
+    "status": 0,
+    "calls_exact": [
+      [
+        "agent",
+        "get",
+        "crew-worker"
+      ]
+    ],
+    "stdout_json_paths": {
+      "run.availability": "absent",
+      "run.id": null,
+      "partner.observation": "live",
+      "partner.name": "crew-worker",
+      "artifacts.latest_report": null,
+      "attention": []
+    },
+    "stdout_absent": [
+      "DO_NOT_PRINT_SESSION_SECRET"
+    ]
+  },
+  "id": "status-retained-without-run",
+  "script": "status.sh",
+  "read_only": true
+}

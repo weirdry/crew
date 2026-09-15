@@ -74,6 +74,32 @@ scope (lead + user, frozen)
 Round cap is 3. Past that the lead stops and hands the disagreement to the user rather than
 letting two models argue indefinitely.
 
+## Inspect a run
+
+From the working directory where the run was initialized, invoke the helper in your installed
+skill directory:
+
+```sh
+<crew-skill-dir>/scripts/status.sh
+<crew-skill-dir>/scripts/status.sh --json
+```
+
+The summary shows the active run, recorded phase and round, retained partner identity, live
+worker state, latest report, latest completed report, and latest review verdict. Recorded
+progress and observed worker state are separate: an idle worker does not prove completion, and
+an older completed report does not hide a newer unfinished one. Missing or inconsistent evidence
+includes a suggested next check. It also works without an active run or outside a Herdr pane;
+if a partner is recorded but Herdr is unavailable, its live state stays unknown.
+
+Inspection reads existing records and calls only `herdr agent get` for the recorded partner.
+It does not initialize, resume, finish, or modify a run, answer a dialog, or change a pane.
+It never queries terminal frames or approval records, and includes only selected metadata
+from report and review files in its output.
+Use the same `CREW_STATE_DIR` setting as the run. Exit 0 means the snapshot has no reported
+attention items, 1 means attention or unavailable evidence, and 2 means invalid arguments.
+Neither 0 nor a report's completion marker is a run verdict. See the
+[status output contract](skills/crew/SKILL.md#inspecting-run-status) for JSON and artifact semantics.
+
 ## Design decisions
 
 **Files carry data; the terminal carries control.** Herdr reads a pane's scrollback, but TUI
@@ -117,11 +143,11 @@ the skill has run against a working repository outside its own. The loop, the ar
 the escalation boundary, and the two lifetimes — a bounded run, a partner that outlives it —
 are settled.
 
-Eight helper scripts carry the mechanics: run initialization and ending, partner attach-or-create
-and explicit retirement, the artifact check, the guarded key send, the typed approval record
+Nine helper scripts carry the mechanics: read-only status inspection, run initialization and
+ending, partner attach-or-create and explicit retirement, the artifact check, the guarded key send, the typed approval record
 with user-visible set grants, and the external state root that keeps the lead's authority files
 where the worker cannot write them. Classification, approval authority, and verdicts stay with
-the lead. An offline suite of 156 cases pins the scripts' documented behaviour and runs with no
+the lead. An offline suite of 182 cases pins the scripts' documented behaviour and runs with no
 Herdr server; it is documented in [`tests/README.md`](tests/README.md) and deliberately excludes
 `run-init.sh`'s Git wiring.
 

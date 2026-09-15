@@ -135,6 +135,22 @@ def check_files(workspace: Path, expected: dict[str, Any]) -> None:
             raise CaseFailure(f"path should be absent: {relative}")
 
 
+def snapshot_tree(root: Path) -> dict[str, Any]:
+    """Ignore access times, but detect content, permission, and directory-entry changes."""
+    if not os.path.lexists(root):
+        return {}
+    result = {}
+    for path in [root, *root.rglob("*")]:
+        metadata = path.lstat()
+        content = None
+        if stat.S_ISREG(metadata.st_mode):
+            content = hashlib.sha256(path.read_bytes()).hexdigest()
+        elif stat.S_ISLNK(metadata.st_mode):
+            content = os.readlink(path)
+        result[str(path.relative_to(root))] = (metadata.st_mode, metadata.st_mtime_ns, content)
+    return result
+
+
 def restore_permissions(root: Path) -> None:
     for directory, directories, _ in os.walk(root):
         Path(directory).chmod(stat.S_IRWXU)
@@ -183,6 +199,8 @@ def run_case(scripts_dir: Path, case_path: Path) -> str:
         environment["HERDR_STUB_FIXTURE"] = str(fixture_path)
         environment["HERDR_STUB_CALL_LOG"] = str(call_log)
         environment["HERDR_STUB_STATE"] = str(state_path)
+        read_only_roots = (workspace, state.parent) if case.get("read_only", False) else ()
+        before = {root: snapshot_tree(root) for root in read_only_roots}
         completed = subprocess.run(
             [str(script), *case.get("args", [])],
             cwd=workspace,
@@ -193,6 +211,9 @@ def run_case(scripts_dir: Path, case_path: Path) -> str:
             check=False,
         )
 
+        for root, original in before.items():
+            if snapshot_tree(root) != original:
+                raise CaseFailure("read-only inspection changed workspace or authority state")
         expected = case["expect"]
         if completed.returncode != expected["status"]:
             raise CaseFailure(
@@ -201,6 +222,19 @@ def run_case(scripts_dir: Path, case_path: Path) -> str:
             )
         check_contains("stdout", completed.stdout, expected.get("stdout_contains", []))
         check_contains("stderr", completed.stderr, expected.get("stderr_contains", []))
+        for fragment in expected.get("stdout_absent", []):
+            if fragment in completed.stdout:
+                raise CaseFailure(f"stdout contains forbidden text {fragment!r}")
+        if "stdout_json_paths" in expected:
+            output = json.loads(completed.stdout)
+            for path, wanted in expected["stdout_json_paths"].items():
+                actual = output
+                for key in path.split("."):
+                    if not isinstance(actual, dict) or key not in actual:
+                        raise CaseFailure(f"stdout JSON path missing: {path}")
+                    actual = actual[key]
+                if actual != wanted:
+                    raise CaseFailure(f"stdout JSON value differs at {path}: {actual!r}")
         for pattern in expected.get("stdout_regex", []):
             if re.search(pattern, completed.stdout, re.MULTILINE) is None:
                 raise CaseFailure(f"stdout did not match {pattern!r}")
