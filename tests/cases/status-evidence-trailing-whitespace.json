@@ -15,11 +15,11 @@
         }
       },
       "{state}/run-1/approvals.jsonl": "DO_NOT_PRINT_SESSION_SECRET\n",
-      ".crew/run-1/state.md": "# Crew state\n\n- Phase: 6\n- Round: 3 of 3\n- Worker: crew-worker\n- Pane: worker-1\n",
+      ".crew/run-1/state.md": "# Crew state\n\n- Phase: 3\n- Round: 1 of 3\n- Worker: crew-worker\n- Pane: worker-1\n",
+      ".crew/run-1/report-1.md": "## Phase 3 self-review  \t\nChecked the change.\nSTATUS: done\n",
+      ".crew/run-1/review-1.md": "Review completed.\nVerdict: approve  \t\n",
       ".git/info/exclude": ".crew/\n",
-      "source.txt": "unchanged source\n",
-      ".crew/run-1/report-3.md": "Rework complete; checks passed.\nSTATUS: done\n",
-      ".crew/run-1/review-3.md": "Review evidence.\n**Verdict:** `approve`\n"
+      "source.txt": "unchanged source\n"
     }
   },
   "herdr": [
@@ -51,25 +51,16 @@
       ]
     ],
     "stdout_json_paths": {
-      "run.availability": "present",
-      "run.id": "run-1",
-      "run.phase": 6,
-      "run.round": 3,
-      "partner.record": "present",
-      "partner.observation": "live",
-      "partner.agent_status": "working",
-      "artifacts.latest_completed_report.round": 3,
-      "artifacts.latest_review.verdict": "approve",
       "artifacts.latest_report.complete": true,
-      "artifacts.latest_report.self_review_complete": false,
-      "attention": [],
-      "artifacts.latest_review.round": 3
+      "artifacts.latest_report.self_review_complete": true,
+      "artifacts.latest_review.verdict": "approve",
+      "attention": []
     },
     "stdout_absent": [
       "DO_NOT_PRINT_SESSION_SECRET"
     ]
   },
-  "id": "status-final-round-review",
+  "id": "status-evidence-trailing-whitespace",
   "script": "status.sh",
   "read_only": true
 }

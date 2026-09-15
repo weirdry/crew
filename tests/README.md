@@ -45,6 +45,10 @@ report completion versus worker state, phase-3 self-review, explicit review verd
 symlinked artifacts. Regression cases exclude commented evidence, preserve literal comment
 examples, flag inconsistent phase/round combinations, and distinguish an unavailable state root
 from an absent partner receipt. Initial, final-round, and early Finishing states remain valid.
+Lead-review cases require the current report at phases 4 and 6 even when the worker is active;
+an older completed report or a CRLF completion marker does not satisfy that check. Other cases
+cover verdict and heading trailing whitespace, significant heading indentation, review-round
+context during rework, and help output without inspection.
 Fixtures contain synthetic private-content sentinels that must not appear in output; no real
 session data is used.
 

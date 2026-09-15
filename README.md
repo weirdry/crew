@@ -82,6 +82,7 @@ skill directory:
 ```sh
 <crew-skill-dir>/scripts/status.sh
 <crew-skill-dir>/scripts/status.sh --json
+<crew-skill-dir>/scripts/status.sh --help
 ```
 
 The summary shows the active run, recorded phase and round, retained partner identity, live
@@ -95,8 +96,9 @@ Inspection reads existing records and calls only `herdr agent get` for the recor
 It does not initialize, resume, finish, or modify a run, answer a dialog, or change a pane.
 It never queries terminal frames or approval records, and includes only selected metadata
 from report and review files in its output.
-Use the same `CREW_STATE_DIR` setting as the run. Exit 0 means the snapshot has no reported
-attention items, 1 means attention or unavailable evidence, and 2 means invalid arguments.
+Use the same `CREW_STATE_DIR` setting as the run. `--help` prints usage without inspection.
+Exit 0 means help was printed or the snapshot has no reported attention items, 1 means attention
+or unavailable evidence, and 2 means invalid arguments.
 Neither 0 nor a report's completion marker is a run verdict. See the
 [status output contract](skills/crew/SKILL.md#inspecting-run-status) for JSON and artifact semantics.
 
@@ -144,12 +146,12 @@ the escalation boundary, and the two lifetimes — a bounded run, a partner that
 are settled.
 
 Nine helper scripts carry the mechanics: read-only status inspection, run initialization and
-ending, partner attach-or-create and explicit retirement, the artifact check, the guarded key send, the typed approval record
-with user-visible set grants, and the external state root that keeps the lead's authority files
-where the worker cannot write them. Classification, approval authority, and verdicts stay with
-the lead. An offline suite of 192 cases pins the scripts' documented behaviour and runs with no
-Herdr server; it is documented in [`tests/README.md`](tests/README.md) and deliberately excludes
-`run-init.sh`'s Git wiring.
+ending, partner attach-or-create and explicit retirement, the artifact check, the guarded key
+send, the typed approval record with user-visible set grants, and the external state root that
+keeps the lead's authority files where the worker cannot write them. Classification, approval
+authority, and verdicts stay with the lead. An offline suite of 200 cases pins the scripts'
+documented behaviour and runs with no Herdr server; it is documented in
+[`tests/README.md`](tests/README.md) and deliberately excludes `run-init.sh`'s Git wiring.
 
 Not yet verified against a live Claude worker: the Claude-layout dialog extractor and the
 state-root sandbox probe. Both are disclosed as such in `SKILL.md`.

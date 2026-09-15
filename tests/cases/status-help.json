@@ -1,0 +1,22 @@
+{
+  "id": "status-help",
+  "script": "status.sh",
+  "args": [
+    "--help"
+  ],
+  "read_only": true,
+  "env": {
+    "CREW_STATE_DIR": "{cwd}"
+  },
+  "expect": {
+    "status": 0,
+    "calls_exact": [],
+    "stdout_contains": [
+      "usage: status.sh [--json | --help]"
+    ],
+    "stdout_absent": [
+      "Crew status",
+      "state-root-unavailable"
+    ]
+  }
+}
