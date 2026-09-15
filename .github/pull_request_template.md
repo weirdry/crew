@@ -81,7 +81,8 @@ Do not infer migrations or mixed-version rollout work from an unreleased impleme
 ## Repository authority and history (optional)
 
 <!-- Link repository-owned contracts, evidence, decisions, and relevant prior PRs or issues.
-External planning systems provide coordination context, not authority or runtime evidence.
+Use Refs #123 for related work on a PR targeting dev; closing keywords do not close issues on dev merge.
+GitHub Issues own work scope and progress; technical claims require repository or runtime evidence.
 -->
 
 -

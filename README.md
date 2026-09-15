@@ -54,7 +54,7 @@ Codex additionally reads `~/.agents/skills/`, which the CLI treats as its univer
 Then, inside a Herdr pane:
 
 ```
-crew로 이 작업 코덱스랑 같이 해줘
+Use crew to work on this with Codex.
 ```
 
 The skill only activates when it is named explicitly.
@@ -134,6 +134,13 @@ Read [CONTRIBUTING.md](CONTRIBUTING.md) for branch, commit, review, validation, 
 release rules. Development integrates on `dev` and reaches `main` through
 fast-forward promotion. Pull requests use the repository-local
 [template](.github/pull_request_template.md).
+
+Crew manages project development and maintenance through
+[GitHub Issues](https://github.com/weirdry/crew/issues), including feature planning,
+research, and routine improvements. Use the [work template](.github/ISSUE_TEMPLATE/work.md)
+and follow the [issue workflow](CONTRIBUTING.md#issue-management). Repository
+documentation, commits, issues, pull requests, comments, and status updates are
+written in English.
 
 Agent instructions live in [RULES.md](RULES.md).
 [AGENTS.md](AGENTS.md) and [CLAUDE.md](CLAUDE.md) are one-line entry documents
