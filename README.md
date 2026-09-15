@@ -35,12 +35,11 @@ ln -s ~/_GIT/crew/skills/crew ~/.claude/skills/crew   # Claude Code
 ln -s ~/_GIT/crew/skills/crew ~/.codex/skills/crew    # Codex ($CODEX_HOME/skills)
 ```
 
-Because the link points at the checkout, every commit is a live deploy: it replaces the helpers
-for every session using the skill at once, including a crew run in progress in another
-workspace, whose lead still holds the previous `SKILL.md` in context while executing the new
-scripts. Use the symlink when developing crew itself, and do not commit to it while another run
-is in flight. For everyday use, install a copy with the skills CLI below and update it
-deliberately.
+Because the link points at the checkout, edits and Git operations that change its files take
+effect immediately for every session using the skill, even before a commit. A run in another
+workspace can therefore retain the previous `SKILL.md` in context while executing new scripts.
+Use an isolated development checkout or worktree when another run uses the linked checkout.
+For everyday use, install a copy with the skills CLI below and update it deliberately.
 
 **With the skills CLI.** The [skills](https://github.com/vercel-labs/skills) CLI comes from npm,
 but the skill itself is fetched from this Git repository:
@@ -128,6 +127,20 @@ Herdr server; it is documented in [`tests/README.md`](tests/README.md) and delib
 
 Not yet verified against a live Claude worker: the Claude-layout dialog extractor and the
 state-root sandbox probe. Both are disclosed as such in `SKILL.md`.
+
+## Contributing
+
+Read [CONTRIBUTING.md](CONTRIBUTING.md) for branch, commit, review, validation, and
+release rules. Development integrates on `dev` and reaches `main` through
+fast-forward promotion. Pull requests use the repository-local
+[template](.github/pull_request_template.md).
+
+Agent instructions live in [RULES.md](RULES.md).
+[AGENTS.md](AGENTS.md) and [CLAUDE.md](CLAUDE.md) are one-line entry documents
+that point to it; update shared instructions in `RULES.md`.
+
+The offline helper suite runs with `tests/run.sh`; see
+[tests/README.md](tests/README.md) for prerequisites and coverage limits.
 
 ## License
 
