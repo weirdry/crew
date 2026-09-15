@@ -37,7 +37,7 @@ snapshot = {
     "workspace": None,
     "state_root": None,
     "run": {"availability": "unavailable", "id": None, "phase": None, "round": None},
-    "partner": {"record": "absent", "name": None, "kind": None, "pane_id": None,
+    "partner": {"record": "unavailable", "name": None, "kind": None, "pane_id": None,
                 "lead_pane_id": None, "observation": "not-queried", "agent_status": None},
     "artifacts": {"latest_report": None, "latest_completed_report": None, "latest_review": None},
     "attention": [],
@@ -68,17 +68,41 @@ def directory(path: Path) -> bool:
 
 
 def prose(text: str) -> list[str]:
-    """Metadata and verdict examples inside fenced code are not observations."""
+    """Keep standalone evidence lines outside fenced code and HTML comments."""
     lines = []
     fence = None
+    comment = False
     for line in text.splitlines():
         marker = re.match(r"^ {0,3}(`{3,}|~{3,})(.*)$", line)
         if fence:
             if marker and marker[1][0] == fence[0] and len(marker[1]) >= len(fence) and not marker[2].strip():
                 fence = None
-        elif marker:
+            continue
+        if not comment and marker:
             fence = marker[1]
-        else:
+            continue
+        # Do not join text around a comment into a new metadata or verdict line.
+        commented_line = comment
+        remaining = line
+        while remaining:
+            if comment:
+                _, end, remaining = remaining.partition("-->")
+                if not end:
+                    break
+                comment = False
+            else:
+                token = re.search(r"<!--|`+", remaining)
+                if not token:
+                    break
+                remaining = remaining[token.end():]
+                if token[0] == "<!--":
+                    comment = commented_line = True
+                else:
+                    # A literal comment opener in an inline code span is harmless.
+                    end = re.search(r"(?<!`)" + re.escape(token[0]) + r"(?!`)", remaining)
+                    if end:
+                        remaining = remaining[end.end():]
+        if not commented_line:
             lines.append(line)
     return lines
 
@@ -115,6 +139,10 @@ def read_run(state_root: Path, cwd: Path) -> tuple[Path | None, list[str]]:
     run["round"] = int(round_value[0]) if round_value else None
     if phase is None or round_value is None:
         attention("run-progress-unknown", "The recorded phase or round is missing, ambiguous, or unsupported.", "Read state.md and the phase rules; the summary does not infer progress from prose.")
+    elif phase != "Finishing":
+        allowed_rounds = {0: (0,), 1: (0,), 2: (1,), 3: (1,), 4: (1,), 5: (2, 3), 6: (2, 3)}
+        if run["round"] not in allowed_rounds[run["phase"]]:
+            attention("run-progress-inconsistent", "The recorded phase and round contradict the run protocol.", "Check state.md: phases 0-1 precede round 1, phases 2-4 use round 1, and phases 5-6 use rounds 2-3.")
     return run_dir, lines
 
 
@@ -223,11 +251,11 @@ def read_artifacts(run_dir: Path) -> None:
                     attention("review-verdict-unknown", f"{filename} has no single explicit verdict line.", "Read the review; the summary does not infer a verdict from findings or prose.")
     run = snapshot["run"]
     phase, round_number = run["phase"], run["round"]
-    if phase == 3 and round_number:
+    if phase == 3:
         report = reports.get(round_number)
         if not report or not report["self_review_complete"]:
             attention("self-review-unconfirmed", "The current round has no completed phase-3 self-review evidence.", "Check its report for the self-review heading and final STATUS: done line.")
-    elif phase in (2, 5) and round_number and snapshot["partner"]["agent_status"] in ("idle", "done"):
+    elif phase in (2, 5) and snapshot["partner"]["agent_status"] in ("idle", "done"):
         report = reports.get(round_number)
         if not report or not report["complete"]:
             attention("report-unconfirmed", "The worker is settled but the current report is not confirmed complete.", "Inspect the expected report and follow the existing missing-artifact rule.")

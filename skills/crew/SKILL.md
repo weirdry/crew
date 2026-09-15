@@ -160,20 +160,25 @@ Both output formats distinguish recorded facts from live observations. JSON cont
 | `artifacts.latest_review` | Highest observed review round, relative path, availability, and explicit verdict when readable |
 | `attention` | Entries with a stable `code`, a bounded message, and a suggested `next_check`; no raw source text |
 
-Unknown scalar facts are `null`; an unobserved report or review is `null`. The helper reads
-reports and reviews for the existing three-round protocol, in round order rather than file
-modification order. `complete` refers only to a report's final `STATUS: done` marker.
+Unknown scalar facts are `null`; an unobserved report or review is `null`. Receipt availability
+stays `unavailable` until inspected; `absent` means the record was checked and does not exist.
+The helper reads reports and reviews for the existing three-round protocol, in round order
+rather than file modification order. `complete` refers only to a report's final `STATUS: done` marker.
 `self_review_complete` additionally requires the exact `## Phase 3 self-review` heading outside
-fenced examples. Phase 3 without that evidence is reported as needing attention even when the
-implementation report is already complete. Neither field establishes the run's final verdict.
+fenced examples and HTML comments. Phase 3 without that evidence is reported as needing attention
+even when the implementation report is already complete. Neither field establishes the run's
+final verdict.
 
 Recorded progress recognizes the existing `- Phase: 0` through `- Phase: 6` or `- Phase: Finishing`
 and `- Round: N of 3` lines; phase/round lines may include a description after `—` or `-`.
+Phases 0-1 use round 0, phases 2-4 use round 1, and phases 5-6 use rounds 2-3. `Finishing`
+can retain any round from 0 through 3. Contradictory combinations remain visible as recorded
+facts and produce an attention item; they do not suppress missing-report checks.
 An explicit review verdict is one standalone `approve`, `approve-with-nits`, or `block` line,
 optionally preceded by `Verdict:` or a list marker and optionally wrapped in Markdown emphasis
-or inline code. Fenced examples, ambiguous verdicts, arbitrary prose, and malformed metadata
-are not interpreted as decisions. Unrecognized existing notes remain intact and can be read
-directly; no state conversion is required.
+or inline code. Fenced examples, lines containing HTML comments, ambiguous verdicts, arbitrary
+prose, and malformed metadata are not interpreted as decisions. Unrecognized existing notes
+remain intact and can be read directly; no state conversion is required.
 
 Exit 0 means no attention items were observed, including when there is no active run. Exit 1
 means the snapshot contains attention items or unavailable evidence; JSON remains available.
