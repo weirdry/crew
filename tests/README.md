@@ -42,8 +42,11 @@ Claude permission dialog.
 The status cases cover human-readable and JSON output, no active run, a retained partner,
 missing or malformed records, unavailable or mismatched Herdr responses, blocked workers,
 report completion versus worker state, phase-3 self-review, explicit review verdicts, and
-symlinked artifacts. Fixtures contain synthetic private-content sentinels that must not appear
-in output; no real session data is used.
+symlinked artifacts. Regression cases exclude commented evidence, preserve literal comment
+examples, flag inconsistent phase/round combinations, and distinguish an unavailable state root
+from an absent partner receipt. Initial, final-round, and early Finishing states remain valid.
+Fixtures contain synthetic private-content sentinels that must not appear in output; no real
+session data is used.
 
 Cases marked `read_only: true` snapshot the workspace and external state parent before and
 after invocation, comparing directory entries, permissions, modification times, file contents,

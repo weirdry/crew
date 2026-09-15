@@ -1,0 +1,25 @@
+{
+  "id": "status-finishing-before-round",
+  "script": "status.sh",
+  "args": [
+    "--json"
+  ],
+  "read_only": true,
+  "setup": {
+    "files": {
+      "{state}/.current": "run-1\n",
+      ".crew/run-1/state.md": "- Phase: Finishing\n- Round: 0 of 3\n- Worker: none\n- Pane: none\n"
+    }
+  },
+  "expect": {
+    "status": 0,
+    "calls_exact": [],
+    "stdout_json_paths": {
+      "run.phase": "Finishing",
+      "run.round": 0,
+      "partner.record": "absent",
+      "artifacts.latest_report": null,
+      "attention": []
+    }
+  }
+}

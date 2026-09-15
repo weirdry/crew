@@ -10,7 +10,7 @@
       "run.id": null,
       "run.phase": null,
       "run.round": null,
-      "partner.record": "absent",
+      "partner.record": "unavailable",
       "partner.observation": "not-queried",
       "partner.agent_status": null,
       "artifacts.latest_report": null,

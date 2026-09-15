@@ -1,0 +1,67 @@
+{
+  "args": [
+    "--json"
+  ],
+  "setup": {
+    "files": {
+      "{state}/.current": "run-1\n",
+      "{state}/worker.json": {
+        "json": {
+          "version": 1,
+          "lead_pane_id": "lead-1",
+          "worker_pane_id": "worker-1",
+          "worker_name": "crew-worker",
+          "worker_kind": "claude"
+        }
+      },
+      "{state}/run-1/approvals.jsonl": "DO_NOT_PRINT_SESSION_SECRET\n",
+      ".crew/run-1/state.md": "# Crew state\n\n- Phase: 5\n- Round: 1 of 3\n- Worker: crew-worker\n- Pane: worker-1\n",
+      ".git/info/exclude": ".crew/\n",
+      "source.txt": "unchanged source\n"
+    }
+  },
+  "herdr": [
+    {
+      "argv": [
+        "agent",
+        "get",
+        "crew-worker"
+      ],
+      "results": [
+        {
+          "agent": {
+            "name": "crew-worker",
+            "agent": "claude",
+            "pane_id": "worker-1",
+            "agent_status": "idle"
+          }
+        }
+      ]
+    }
+  ],
+  "expect": {
+    "status": 1,
+    "calls_exact": [
+      [
+        "agent",
+        "get",
+        "crew-worker"
+      ]
+    ],
+    "stdout_contains": [
+      "run-progress-inconsistent",
+      "report-unconfirmed"
+    ],
+    "stdout_json_paths": {
+      "run.phase": 5,
+      "run.round": 1,
+      "artifacts.latest_report": null
+    },
+    "stdout_absent": [
+      "DO_NOT_PRINT_SESSION_SECRET"
+    ]
+  },
+  "id": "status-rework-round-one",
+  "script": "status.sh",
+  "read_only": true
+}

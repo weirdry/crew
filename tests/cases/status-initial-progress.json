@@ -1,0 +1,25 @@
+{
+  "id": "status-initial-progress",
+  "script": "status.sh",
+  "args": [
+    "--json"
+  ],
+  "read_only": true,
+  "setup": {
+    "files": {
+      "{state}/.current": "run-1\n",
+      ".crew/run-1/state.md": "- Phase: 0\n- Round: 0 of 3\n- Worker: none\n- Pane: none\n"
+    }
+  },
+  "expect": {
+    "status": 0,
+    "calls_exact": [],
+    "stdout_json_paths": {
+      "run.phase": 0,
+      "run.round": 0,
+      "partner.record": "absent",
+      "artifacts.latest_report": null,
+      "attention": []
+    }
+  }
+}
