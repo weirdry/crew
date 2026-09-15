@@ -1,0 +1,27 @@
+{
+  "args": [
+    "--json"
+  ],
+  "expect": {
+    "status": 0,
+    "calls_exact": [],
+    "stdout_json_paths": {
+      "run.availability": "absent",
+      "run.id": null,
+      "run.phase": null,
+      "run.round": null,
+      "partner.record": "absent",
+      "partner.observation": "not-queried",
+      "partner.agent_status": null,
+      "artifacts.latest_report": null,
+      "artifacts.latest_review": null,
+      "attention": []
+    },
+    "stdout_absent": [
+      "DO_NOT_PRINT_SESSION_SECRET"
+    ]
+  },
+  "id": "status-no-run-json",
+  "script": "status.sh",
+  "read_only": true
+}

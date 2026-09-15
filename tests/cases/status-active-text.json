@@ -1,0 +1,65 @@
+{
+  "setup": {
+    "files": {
+      "{state}/.current": "run-1\n",
+      "{state}/worker.json": {
+        "json": {
+          "version": 1,
+          "lead_pane_id": "lead-1",
+          "worker_pane_id": "worker-1",
+          "worker_name": "crew-worker",
+          "worker_kind": "claude"
+        }
+      },
+      "{state}/run-1/approvals.jsonl": "DO_NOT_PRINT_SESSION_SECRET\n",
+      ".crew/run-1/state.md": "# Crew state\n\n- Phase: 4\n- Round: 1 of 3\n- Worker: crew-worker\n- Pane: worker-1\n",
+      ".crew/run-1/report-1.md": "Example change and checks.\n## Phase 3 self-review\nChecked the change.\nSTATUS: done\n",
+      ".crew/run-1/review-1.md": "Review evidence.\nVerdict: approve\n",
+      ".git/info/exclude": ".crew/\n",
+      "source.txt": "unchanged source\n"
+    }
+  },
+  "herdr": [
+    {
+      "argv": [
+        "agent",
+        "get",
+        "crew-worker"
+      ],
+      "results": [
+        {
+          "agent": {
+            "name": "crew-worker",
+            "agent": "claude",
+            "pane_id": "worker-1",
+            "agent_status": "working"
+          }
+        }
+      ]
+    }
+  ],
+  "expect": {
+    "status": 0,
+    "calls_exact": [
+      [
+        "agent",
+        "get",
+        "crew-worker"
+      ]
+    ],
+    "stdout_contains": [
+      "Run: run-1",
+      "Recorded progress: phase 4; round 1 of 3",
+      "crew-worker (claude), pane worker-1",
+      "Live observation: live; agent status working",
+      "Latest completed report: .crew/run-1/report-1.md",
+      "verdict approve"
+    ],
+    "stdout_absent": [
+      "DO_NOT_PRINT_SESSION_SECRET"
+    ]
+  },
+  "id": "status-active-text",
+  "script": "status.sh",
+  "read_only": true
+}

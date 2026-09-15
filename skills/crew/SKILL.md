@@ -131,6 +131,56 @@ directory, and the inert approval audit copied there at Finishing:
 
 `state.md` makes a run resumable if the lead session dies. Update it at every phase boundary.
 
+### Inspecting run status
+
+To inspect progress or an interrupted session, run from the same working directory and with the
+same `CREW_STATE_DIR` used at initialization:
+
+```bash
+<crew-skill-dir>/scripts/status.sh
+<crew-skill-dir>/scripts/status.sh --json
+```
+
+The helper only reads the existing state root and current run artifacts, invokes
+`artifact-done.sh` for report completion, and queries `herdr agent get` for the recorded partner.
+It does not require `HERDR_ENV=1`, create state directories, read approval records or terminal
+frames, send input, transfer ownership, or make a completion or recovery decision. Herdr queries
+time out after five seconds; missing or unrecognized responses remain unavailable. A partner
+without an active run is reported as retained state, not as an unfinished run.
+
+Both output formats distinguish recorded facts from live observations. JSON contains:
+
+| Field | Meaning |
+| --- | --- |
+| `workspace`, `state_root` | Canonical locations from `state-root.sh`; `null` when validation failed |
+| `run` | Pointer availability (`present`, `absent`, `unavailable`), run ID, recorded `phase` and `round` |
+| `partner` | Receipt availability, recorded name/kind/worker and lead pane IDs, `observation` (`not-queried`, `live`, `absent`, `unavailable`, `mismatch`), and observed `agent_status` |
+| `artifacts.latest_report` | Highest observed report round, relative path, availability, `complete`, and `self_review_complete` |
+| `artifacts.latest_completed_report` | Highest report round whose last line passes `artifact-done.sh`; an older report is not evidence for the current round |
+| `artifacts.latest_review` | Highest observed review round, relative path, availability, and explicit verdict when readable |
+| `attention` | Entries with a stable `code`, a bounded message, and a suggested `next_check`; no raw source text |
+
+Unknown scalar facts are `null`; an unobserved report or review is `null`. The helper reads
+reports and reviews for the existing three-round protocol, in round order rather than file
+modification order. `complete` refers only to a report's final `STATUS: done` marker.
+`self_review_complete` additionally requires the exact `## Phase 3 self-review` heading outside
+fenced examples. Phase 3 without that evidence is reported as needing attention even when the
+implementation report is already complete. Neither field establishes the run's final verdict.
+
+Recorded progress recognizes the existing `- Phase: 0` through `- Phase: 6` or `- Phase: Finishing`
+and `- Round: N of 3` lines; phase/round lines may include a description after `—` or `-`.
+An explicit review verdict is one standalone `approve`, `approve-with-nits`, or `block` line,
+optionally preceded by `Verdict:` or a list marker and optionally wrapped in Markdown emphasis
+or inline code. Fenced examples, ambiguous verdicts, arbitrary prose, and malformed metadata
+are not interpreted as decisions. Unrecognized existing notes remain intact and can be read
+directly; no state conversion is required.
+
+Exit 0 means no attention items were observed, including when there is no active run. Exit 1
+means the snapshot contains attention items or unavailable evidence; JSON remains available.
+Exit 2 means invalid arguments. This is a point-in-time, best-effort inspection: records and
+Herdr may change during the query. Recheck before acting and follow the normal supervision,
+ownership, and approval rules. Do not use status output as authorization to resume or clean up.
+
 ### What `task.md` must contain
 
 Write these sections, in this order:

@@ -1,0 +1,42 @@
+{
+  "args": [
+    "--json"
+  ],
+  "setup": {
+    "files": {
+      "{state}/.current": "run-1\n",
+      "{state}/worker.json": "{\"private\":\"DO_NOT_PRINT_SESSION_SECRET\"}\n",
+      "{state}/run-1/approvals.jsonl": "DO_NOT_PRINT_SESSION_SECRET\n",
+      ".crew/run-1/state.md": "# Crew state\n\n- Phase: 4\n- Round: 1 of 3\n- Worker: crew-worker\n- Pane: worker-1\n",
+      ".crew/run-1/report-1.md": "Example change and checks.\n## Phase 3 self-review\nChecked the change.\nSTATUS: done\n",
+      ".crew/run-1/review-1.md": "Review evidence.\nVerdict: approve\n",
+      ".git/info/exclude": ".crew/\n",
+      "source.txt": "unchanged source\n"
+    }
+  },
+  "expect": {
+    "status": 1,
+    "calls_exact": [],
+    "stdout_json_paths": {
+      "run.availability": "present",
+      "run.id": "run-1",
+      "run.phase": 4,
+      "run.round": 1,
+      "partner.record": "unavailable",
+      "partner.observation": "not-queried",
+      "partner.agent_status": null,
+      "artifacts.latest_completed_report.round": 1,
+      "artifacts.latest_review.verdict": "approve",
+      "partner.name": null
+    },
+    "stdout_contains": [
+      "partner-record-unavailable"
+    ],
+    "stdout_absent": [
+      "DO_NOT_PRINT_SESSION_SECRET"
+    ]
+  },
+  "id": "status-invalid-partner-record",
+  "script": "status.sh",
+  "read_only": true
+}

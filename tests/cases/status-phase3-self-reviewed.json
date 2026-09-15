@@ -1,0 +1,73 @@
+{
+  "args": [
+    "--json"
+  ],
+  "setup": {
+    "files": {
+      "{state}/.current": "run-1\n",
+      "{state}/worker.json": {
+        "json": {
+          "version": 1,
+          "lead_pane_id": "lead-1",
+          "worker_pane_id": "worker-1",
+          "worker_name": "crew-worker",
+          "worker_kind": "claude"
+        }
+      },
+      "{state}/run-1/approvals.jsonl": "DO_NOT_PRINT_SESSION_SECRET\n",
+      ".crew/run-1/state.md": "# Crew state\n\n- Phase: 3\n- Round: 1 of 3\n- Worker: crew-worker\n- Pane: worker-1\n",
+      ".crew/run-1/report-1.md": "Example change and checks.\n## Phase 3 self-review\nChecked the change.\nSTATUS: done\n",
+      ".crew/run-1/review-1.md": "Review evidence.\nVerdict: approve\n",
+      ".git/info/exclude": ".crew/\n",
+      "source.txt": "unchanged source\n"
+    }
+  },
+  "herdr": [
+    {
+      "argv": [
+        "agent",
+        "get",
+        "crew-worker"
+      ],
+      "results": [
+        {
+          "agent": {
+            "name": "crew-worker",
+            "agent": "claude",
+            "pane_id": "worker-1",
+            "agent_status": "idle"
+          }
+        }
+      ]
+    }
+  ],
+  "expect": {
+    "status": 0,
+    "calls_exact": [
+      [
+        "agent",
+        "get",
+        "crew-worker"
+      ]
+    ],
+    "stdout_json_paths": {
+      "run.availability": "present",
+      "run.id": "run-1",
+      "run.phase": 3,
+      "run.round": 1,
+      "partner.record": "present",
+      "partner.observation": "live",
+      "partner.agent_status": "idle",
+      "artifacts.latest_completed_report.round": 1,
+      "artifacts.latest_review.verdict": "approve",
+      "artifacts.latest_report.self_review_complete": true,
+      "attention": []
+    },
+    "stdout_absent": [
+      "DO_NOT_PRINT_SESSION_SECRET"
+    ]
+  },
+  "id": "status-phase3-self-reviewed",
+  "script": "status.sh",
+  "read_only": true
+}

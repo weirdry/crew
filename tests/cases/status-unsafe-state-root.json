@@ -1,0 +1,32 @@
+{
+  "args": [
+    "--json"
+  ],
+  "expect": {
+    "status": 1,
+    "calls_exact": [],
+    "stdout_json_paths": {
+      "run.availability": "unavailable",
+      "run.id": null,
+      "run.phase": null,
+      "run.round": null,
+      "partner.record": "absent",
+      "partner.observation": "not-queried",
+      "partner.agent_status": null,
+      "artifacts.latest_report": null,
+      "artifacts.latest_review": null
+    },
+    "stdout_contains": [
+      "state-root-unavailable"
+    ],
+    "stdout_absent": [
+      "DO_NOT_PRINT_SESSION_SECRET"
+    ]
+  },
+  "env": {
+    "CREW_STATE_DIR": "{cwd}"
+  },
+  "id": "status-unsafe-state-root",
+  "script": "status.sh",
+  "read_only": true
+}

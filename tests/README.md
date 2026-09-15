@@ -32,6 +32,23 @@ including `dirname`. No Herdr server, network access, package installation, or t
 needed.
 
 The suite covers `worker-start.sh`, `worker-stop.sh`, `answer-dialog.sh`, `approval.sh`,
-`run-finish.sh`, and `artifact-done.sh`. `run-init.sh` is deliberately not covered by this suite.
+`run-finish.sh`, `artifact-done.sh`, and `status.sh`. The `run-init.sh` cases exercise rejected
+state roots; its successful initialization and Git wiring are not covered by this suite.
 The Claude-layout approval frame is synthetic and does not verify the branch against a live
 Claude permission dialog.
+
+## Status inspection coverage
+
+The status cases cover human-readable and JSON output, no active run, a retained partner,
+missing or malformed records, unavailable or mismatched Herdr responses, blocked workers,
+report completion versus worker state, phase-3 self-review, explicit review verdicts, and
+symlinked artifacts. Fixtures contain synthetic private-content sentinels that must not appear
+in output; no real session data is used.
+
+Cases marked `read_only: true` snapshot the workspace and external state parent before and
+after invocation, comparing directory entries, permissions, modification times, file contents,
+and symlink targets. Access times are ignored. Exact Herdr call assertions allow only the
+recorded partner's `agent get`; fixture logs are outside the snapshotted state. The optional
+`stdout_json_paths` assertions inspect JSON fields, and `stdout_absent` forbids output fragments.
+These checks prove the helper's behavior against synthetic fixtures, not live Claude approval
+handling, Herdr server behavior, or protection enforced by an agent sandbox.
