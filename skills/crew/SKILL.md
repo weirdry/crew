@@ -139,6 +139,7 @@ same `CREW_STATE_DIR` used at initialization:
 ```bash
 <crew-skill-dir>/scripts/status.sh
 <crew-skill-dir>/scripts/status.sh --json
+<crew-skill-dir>/scripts/status.sh --help
 ```
 
 The helper only reads the existing state root and current run artifacts, invokes
@@ -156,6 +157,7 @@ Both output formats distinguish recorded facts from live observations. JSON cont
 | `run` | Pointer availability (`present`, `absent`, `unavailable`), run ID, recorded `phase` and `round` |
 | `partner` | Receipt availability, recorded name/kind/worker and lead pane IDs, `observation` (`not-queried`, `live`, `absent`, `unavailable`, `mismatch`), and observed `agent_status` |
 | `artifacts.latest_report` | Highest observed report round, relative path, availability, `complete`, and `self_review_complete` |
+| `artifacts.latest_report.self_review_complete` | Report completion plus a phase-3 heading. Required only in round 1; `false` on a later report without that heading is not a missing requirement. |
 | `artifacts.latest_completed_report` | Highest report round whose last line passes `artifact-done.sh`; an older report is not evidence for the current round |
 | `artifacts.latest_review` | Highest observed review round, relative path, availability, and explicit verdict when readable |
 | `attention` | Entries with a stable `code`, a bounded message, and a suggested `next_check`; no raw source text |
@@ -169,22 +171,33 @@ fenced examples and HTML comments. Phase 3 without that evidence is reported as 
 even when the implementation report is already complete. Neither field establishes the run's
 final verdict.
 
+At phases 4 and 6, the current-round report must already be complete, so a missing or incomplete
+report needs attention regardless of the worker's live state. Phases 2 and 5 apply that check
+once the worker is idle or done. A lead review still being written is not itself missing evidence.
+
 Recorded progress recognizes the existing `- Phase: 0` through `- Phase: 6` or `- Phase: Finishing`
 and `- Round: N of 3` lines; phase/round lines may include a description after `—` or `-`.
 Phases 0-1 use round 0, phases 2-4 use round 1, and phases 5-6 use rounds 2-3. `Finishing`
 can retain any round from 0 through 3. Contradictory combinations remain visible as recorded
 facts and produce an attention item; they do not suppress missing-report checks.
-An explicit review verdict is one standalone `approve`, `approve-with-nits`, or `block` line,
-optionally preceded by `Verdict:` or a list marker and optionally wrapped in Markdown emphasis
-or inline code. Fenced examples, lines containing HTML comments, ambiguous verdicts, arbitrary
-prose, and malformed metadata are not interpreted as decisions. Unrecognized existing notes
-remain intact and can be read directly; no state conversion is required.
+
+Write the final verdict line using the format in [Review discipline](#review-discipline).
+Inspection recognizes one standalone `approve`, `approve-with-nits`, or `block` line, optionally
+preceded by `Verdict:` or `- ` and optionally wrapped in bold (`**`) or inline code. Trailing
+whitespace is ignored for verdict lines and self-review headings. Fenced examples, lines
+containing HTML comments, ambiguous verdicts, arbitrary prose, and malformed metadata are not
+interpreted as decisions. Unrecognized existing notes remain intact and can be read directly;
+no state conversion is required.
+
+`review-block` names the review's round. During rework it can refer to an earlier round's
+request; this records the verdict and does not imply that the worker is stalled.
 
 Exit 0 means no attention items were observed, including when there is no active run. Exit 1
 means the snapshot contains attention items or unavailable evidence; JSON remains available.
-Exit 2 means invalid arguments. This is a point-in-time, best-effort inspection: records and
-Herdr may change during the query. Recheck before acting and follow the normal supervision,
-ownership, and approval rules. Do not use status output as authorization to resume or clean up.
+`--help` prints usage and exits 0 without inspection. Exit 2 means invalid arguments.
+This is a point-in-time, best-effort inspection: records and Herdr may change during the query.
+Recheck before acting and follow the normal supervision, ownership, and approval rules.
+Do not use status output as authorization to resume or clean up.
 
 ### What `task.md` must contain
 
@@ -563,7 +576,10 @@ Enforced rules:
 - A finding with no concrete `failure` is discarded. Discomfort is not a finding.
 - A `blocker` with no `withdraw_if` is invalid. A blocker must be falsifiable and satisfiable.
 - At most 5 findings per review, at most 2 blockers. Rank by severity.
-- Every review ends with exactly one verdict: `approve`, `approve-with-nits`, or `block`.
+- Every review ends with exactly one standalone line: `Verdict: approve`,
+  `Verdict: approve-with-nits`, or `Verdict: block`. Write that line as plain text, with the
+  spelling and capitalization shown, and place the rationale above it. Keep punctuation,
+  explanations, and examples off the final verdict line.
 - Use `approve-with-nits` only when no blocker remains. Send the nits to the still-live worker
   as one final pass that does not consume a round, and allow at most one such pass. If the
   worker is already gone, record the nits under `Deferred nits` in the current `review-<n>.md`

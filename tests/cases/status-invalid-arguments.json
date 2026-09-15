@@ -6,7 +6,7 @@
     "status": 2,
     "calls_exact": [],
     "stderr_contains": [
-      "usage: status.sh [--json]"
+      "usage: status.sh [--json | --help]"
     ],
     "stdout_absent": [
       "DO_NOT_PRINT_SESSION_SECRET"
