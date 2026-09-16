@@ -178,6 +178,20 @@ def run_case(scripts_dir: Path, case_path: Path) -> str:
             "command_b64": base64.urlsafe_b64encode(command.encode("utf-8")).decode("ascii"),
             "command_sha256": hashlib.sha256(command.encode("utf-8")).hexdigest(),
         }
+        if "{grant_root}" in case_path.read_text(encoding="utf-8"):
+            grant_root = (temporary / "grant-root").resolve()
+            grant_root.mkdir()
+            values["grant_root"] = str(grant_root)
+        # Encode fixture-declared identities after substituting the disposable path.
+        # Expected approval/grant semantics remain authored in the case, not inferred
+        # from the production helper or its output.
+        for name, value in raw.get("encoded_values", {}).items():
+            substituted = replace(value, values)
+            text = substituted if isinstance(substituted, str) else json.dumps(
+                substituted, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+            content = text.encode("utf-8")
+            values[name + "_b64"] = base64.urlsafe_b64encode(content).decode("ascii")
+            values[name + "_sha256"] = hashlib.sha256(content).hexdigest()
         case = replace(raw, values)
         setup = case.get("setup", {})
         write_setup(workspace, setup)

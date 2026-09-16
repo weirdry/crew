@@ -15,6 +15,13 @@ writes only the files declared by that case, prepends `tests/bin/` to the existi
 the named helper, and checks its status, output, files, and recorded Herdr calls. Temporary
 workspaces are removed after each case, including failures.
 
+Grant cases use `{grant_root}`, a canonical disposable sibling of the workspace,
+instead of assuming that macOS's `/private/tmp` exists on Linux. Optional
+`encoded_values` entries declare exact fixture identities; after path substitution,
+the runner provides `{name_b64}` and `{name_sha256}` tokens from literal strings
+or canonical JSON objects. Assertions still specify approval, grant, text and outcomes;
+no expected identity is obtained from the helper being tested.
+
 A case's lead authority state — the active-run pointer, the partner receipt, the approval record
 — lives under `{state}`, a sibling of the case workspace, exported to the script as
 `CREW_STATE_DIR`'s per-workspace child. Case roots are created under `/var/tmp` rather than the
