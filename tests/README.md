@@ -90,3 +90,31 @@ The [continuation walkthrough](relay-walkthrough.md) identifies the concrete
 file-level outcome and its limits. A scripted synthetic packet is not evidence
 that a fresh model understands it, that model-written summaries preserve every
 real-world fact, or that live Herdr delivered the prompt.
+
+## Release and installation coverage
+
+`sh tests/ci.sh` runs shell syntax checks, the 200 helper fixture cases and 23
+relay tests, the standard-library release suite, and version policy against
+`origin/main`. Python 3.11+ is required. Run the focused release suite with:
+
+```sh
+python3 -B -m unittest discover -s tests -p 'test_release.py' -v
+```
+
+Release tests commit synthetic temporary repositories and use disposable payloads
+and homes. They cover deterministic packaging, source/mode/inventory identity,
+archive rejection before extraction, both host installations and repeat no-ops,
+read-only checks, conflict/modified detection, duplicate roots, managed replacement,
+restoration after a failed swap, and preserved interrupted transactions. A
+stateful fake GitHub service exercises tag/draft/asset publication, retries after
+an accepted upload with a lost response, immutable publication, docs-only skips,
+version reuse refusal, credential-safe redirects and separate consumer evidence.
+An actual candidate is installed and its packaged helper entry points executed.
+No test sends a publication request or modifies a normal skill installation.
+
+Hosted CI repeats the suite and candidate consumption on Linux/Python 3.11 and
+3.14 and macOS/Python 3.11. The main Release workflow additionally downloads the
+published artifact anonymously on Linux and macOS. See [RELEASING.md](../RELEASING.md)
+for identity, authority, retries and evidence retention. Candidate tests do not
+prove hosted publication; public consumption does not prove live host discovery,
+Herdr permission handling or fresh-agent comprehension.
