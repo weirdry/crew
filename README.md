@@ -177,7 +177,7 @@ and explicit retirement, the artifact check, the guarded key
 send, the typed approval record with user-visible set grants, and the external state root that
 keeps the lead's authority files where the worker cannot write them. Classification, approval
 authority, and verdicts stay with the lead. An offline suite of 200 existing cases and
-18 relay tests pins the scripts' documented behaviour and runs with no Herdr server;
+20 relay tests pins the scripts' documented behaviour and runs with no Herdr server;
 it is documented in
 [`tests/README.md`](tests/README.md) and deliberately excludes `run-init.sh`'s Git wiring.
 

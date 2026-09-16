@@ -62,7 +62,7 @@ handling, Herdr server behavior, or protection enforced by an agent sandbox.
 
 ## Context relay coverage
 
-The same entry point also runs `tests/relay.py`: 18 standard-library unittest cases
+The same entry point also runs `tests/relay.py`: 20 standard-library unittest cases
 that invoke the actual relay helper through sequential synthetic exchanges.
 It uses isolated workspaces and external state under /var/tmp, including the
 real state-root validator. A Herdr stub with no permitted calls catches any
@@ -73,7 +73,9 @@ Coverage includes publication and response provenance, incremental and fresh
 reading, session isolation, completed-run reading, source-preserving and successive
 summaries, corrections after compaction, optional byte-budget signals, invalid
 coverage/cursors, changed summary sources, incomplete records, symlinks, and
-concurrent name collisions. Read-only assertions compare workspace and authority
+concurrent name collisions. Relay and summary publication preserve completion-marker
+text within sentences while accepting a standalone final marker in a draft.
+Read-only assertions compare workspace and authority
 state around each plan and refusal; plan output excludes message bodies.
 
 Run just the relay suite with:

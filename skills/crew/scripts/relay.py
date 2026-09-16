@@ -110,8 +110,8 @@ def draft(root: Path, relative: str, required: tuple[str, ...]) -> str:
     if "\r" in body or "\x00" in body:
         raise InvalidRecord("draft must be UTF-8 text with LF line endings")
     body = body.rstrip("\n")
-    if body.endswith("STATUS: done"):
-        body = body[:-len("STATUS: done")].rstrip("\n")
+    if body.endswith("\nSTATUS: done"):
+        body = body[:-len("\nSTATUS: done")].rstrip("\n")
     sections(body, required)
     return body
 
