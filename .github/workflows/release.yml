@@ -1,0 +1,120 @@
+name: Release
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+concurrency:
+  group: crew-release
+  cancel-in-progress: false
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.11'
+      - run: sh tests/ci.sh
+      - name: Build and validate the publication candidate
+        run: |
+          python3 -B tools/release/package.py --output "$RUNNER_TEMP/crew-candidate"
+          python3 -B tools/release/consume.py --archive "$RUNNER_TEMP/crew-candidate/crew-v$(cat VERSION).tar.gz" --sha256 "$(cut -d ' ' -f 1 "$RUNNER_TEMP/crew-candidate/SHA256SUMS")"
+      - id: candidate
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: candidate-${{ github.run_id }}
+          path: ${{ runner.temp }}/crew-candidate
+          if-no-files-found: error
+          overwrite: true
+    outputs:
+      candidate: ${{ steps.candidate.outputs.artifact-id }}
+  publish:
+    needs: validate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      eligible: ${{ steps.publish.outputs.eligible }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.11'
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          artifact-ids: ${{ needs.validate.outputs.candidate }}
+          path: ${{ runner.temp }}/crew-candidate
+      - id: publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 -B tools/release/publish.py --candidate "$RUNNER_TEMP/crew-candidate" --result "$RUNNER_TEMP/outcome/publication.json"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: always()
+        with:
+          name: publication-${{ github.run_id }}
+          path: ${{ runner.temp }}/outcome/publication.json
+          if-no-files-found: error
+          overwrite: true
+  consume:
+    needs: publish
+    if: ${{ always() && needs.publish.outputs.eligible == 'true' }}
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.11'
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: publication-${{ github.run_id }}
+          path: ${{ runner.temp }}/publication
+      - name: Download and consume the public release without publication credentials
+        run: python3 -B tools/release/consume.py --record "$RUNNER_TEMP/publication/publication.json" --result "$RUNNER_TEMP/verification/${{ matrix.os }}.json"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: always()
+        with:
+          name: verification-${{ matrix.os }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/verification/${{ matrix.os }}.json
+          if-no-files-found: error
+          overwrite: true
+  evidence:
+    needs: [publish, consume]
+    if: ${{ always() && needs.publish.outputs.eligible == 'true' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.11'
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: publication-${{ github.run_id }}
+          path: ${{ runner.temp }}/publication
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          pattern: verification-*-${{ github.run_id }}
+          merge-multiple: true
+          path: ${{ runner.temp }}/verification
+      - name: Retain the separate publication and verification outcomes
+        if: ${{ always() }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 -B tools/release/evidence.py --publication "$RUNNER_TEMP/publication/publication.json" --records "$RUNNER_TEMP/verification" --consumer-status "${{ needs.consume.result }}"

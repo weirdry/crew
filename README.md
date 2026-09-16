@@ -25,31 +25,34 @@ for that. The skill refuses the same-kind case on purpose.
 
 ## Install
 
-The skill is plain Markdown in this repository. Nothing is published to npm.
+Use an exact [GitHub Release](https://github.com/weirdry/crew/releases) and follow
+[INSTALL.md](INSTALL.md) for verified download, managed installation, updates and
+read-only checks. One archive contains the skill, helpers and installer. Python
+3.11+ on macOS or Linux is required; nothing is published to npm. The first
+governed version is 0.1.0, available only after its release has actually published.
 
-**Direct — no tooling.** Clone anywhere, then symlink into each agent's skills directory:
+Default personal destinations are `~/.agents/skills/crew` for Codex and
+`~/.claude/skills/crew` for Claude Code. Existing copies, development links and
+duplicate roots are preserved and reported as conflicts; there is no automatic
+adoption or force overwrite. Finish affected Crew work before an update and use
+a fresh agent session afterwards.
 
-```bash
-git clone https://github.com/weirdry/crew.git ~/_GIT/crew
-ln -s ~/_GIT/crew/skills/crew ~/.claude/skills/crew   # Claude Code
-ln -s ~/_GIT/crew/skills/crew ~/.codex/skills/crew    # Codex ($CODEX_HOME/skills)
+### Development installation
+
+A deliberately maintained checkout may still be symlinked into a host's skill
+root. For example, after checking that the destination is absent:
+
+```sh
+mkdir -p ~/.agents/skills
+ln -s /absolute/development-checkout/skills/crew ~/.agents/skills/crew
 ```
 
-Because the link points at the checkout, edits and Git operations that change its files take
-effect immediately for every session using the skill, even before a commit. A run in another
-workspace can therefore retain the previous `SKILL.md` in context while executing new scripts.
-Use an isolated development checkout or worktree when another run uses the linked checkout.
-For everyday use, install a copy with the skills CLI below and update it deliberately.
-
-**With the skills CLI.** The [skills](https://github.com/vercel-labs/skills) CLI comes from npm,
-but the skill itself is fetched from this Git repository:
-
-```bash
-npx skills add weirdry/crew --skill crew -g
-```
-
-It adds a lockfile and `npx skills update -g`, and it resolves agent directories for you —
-Codex additionally reads `~/.agents/skills/`, which the CLI treats as its universal location.
+Use `~/.claude/skills/crew` for Claude. Edits, branch switches, pulls and rebases
+change what linked sessions execute immediately, even before a commit. Develop
+and test in an isolated checkout when another session uses the linked checkout.
+The managed installer refuses these symlinks. Third-party skill installers also
+remain outside Crew's managed ownership contract; their copies are treated as
+unmanaged until deliberately preserved and replaced by the operator.
 
 Then, inside a Herdr pane:
 

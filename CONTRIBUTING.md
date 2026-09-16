@@ -156,9 +156,10 @@ offline helper suite needs `sh`, `python3`, and the POSIX utilities used by the
 helpers. It does not need a Herdr server, network access, or package installation.
 See [tests/README.md](tests/README.md) for the fixture model and coverage limits.
 
-Crew currently uses its native shell test entry point. There is no root Just
-interface, repository-managed Git hook, or hosted CI workflow. Use the actual
-commands below and report local results separately from hosted or live evidence.
+Crew uses native shell and Python test entry points, with hosted CI on Linux and
+macOS. There is no root Just interface or repository-managed Git hook. Run
+`sh tests/ci.sh` for the complete CI checks (Python 3.11+ and `origin/main` are
+required). Report local results separately from hosted or live evidence.
 If repository-managed hooks are introduced, enable them as documented and do
 not bypass them with `git commit --no-verify`.
 
@@ -256,7 +257,11 @@ required checks, or repository merge settings by themselves.
 
 ## Promoting dev to main
 
-Promotion is fast-forward-only. Validate the development revision, then advance
+Promotion is fast-forward-only. First complete the version/changelog review and
+hosted setup in [RELEASING.md](RELEASING.md#before-the-first-promotion), including
+the native immutable-releases setting read-back. A push to `main` starts the
+release workflow; treat that push as authorization to publish the reviewed
+version. Validate the development revision, then advance
 `main` without creating a merge commit:
 
 ```sh
@@ -275,13 +280,17 @@ git switch dev
 
 If fast-forward promotion fails, stop and resolve the divergence deliberately.
 Do not replace `--ff-only` with a merge commit or force push. Promotion identifies
-the release source; it does not prove that an existing installation was updated.
+the release source; check the Release workflow publication and public-download
+verification outcomes separately. It does not prove that an existing workstation
+installation was updated.
 
 ## Release boundaries and installed state
 
-Crew is distributed from this Git repository as a skill and helper scripts;
-nothing is published to npm. Existing copies and symlink installations are real
-consumers. A symlink loads the files in its target checkout immediately, so an
+Crew is distributed as a versioned GitHub Release archive built from this Git
+repository; nothing is published to npm. [RELEASING.md](RELEASING.md) owns the
+version, artifact, publication and retry rules. [INSTALL.md](INSTALL.md) owns
+managed installation and read-only checks. Existing copies and symlink
+installations are real consumers. A symlink loads its target files immediately, so an
 edit, branch switch, pull, or rebase can affect a running session before a commit.
 Use an isolated development checkout or worktree when installed sessions may be
 using another checkout. A link to `dev` is an explicit local development choice,
@@ -319,8 +328,9 @@ user's authorized scope; ad hoc state cleanup requires explicit authorization.
 
 The [skill entry](skills/crew/SKILL.md) owns the agent workflow. The
 [helper scripts](skills/crew/scripts/) and [tests](tests/README.md) own executable
-behavior and repeatable checks. The [README](README.md) owns installation and
-the user-facing overview. This document owns contribution and issue-management
+behavior and repeatable checks. The [README](README.md) owns the user-facing
+overview and links to the [installation contract](INSTALL.md) and
+[release process](RELEASING.md). This document owns contribution and issue-management
 procedures; the local issue and PR templates own their respective body formats.
 Update the affected owners together when behavior changes.
 
