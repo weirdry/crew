@@ -104,6 +104,32 @@ Neither 0 nor a report's completion marker is a run verdict. See the
 
 ## Design decisions
 
+### Shared context and occasional compaction
+
+Each run is also a collaboration session with its own local relay history. Use
+`relay.sh append` to publish questions, answers, corrections, or rationale that
+the task/report/review files do not already capture. Each actor owns its messages.
+A restarted or replacement agent can continue the same run from those records.
+
+```sh
+<crew-skill-dir>/scripts/relay.sh read-plan <run-id>
+<crew-skill-dir>/scripts/relay.sh read-plan <run-id> --after <last-understood-relay>
+```
+
+The read-only plan lists canonical task/status files and either the latest summary
+plus later relays or the unread original suffix. It never marks records read.
+Herdr still delivers prompts and controls the agents.
+
+Summaries are optional and authored by the lead when useful, then published with
+`relay.sh publish-summary`. Original relays and older summaries remain intact.
+No automatic summarization runs after every turn or handoff. An optional
+`--budget-bytes` read-plan argument reports a reading-size signal; there is no
+default token threshold or assumption that model capacity equals available space.
+See the [context relay protocol](skills/crew/references/relay.md) for commands,
+templates, ownership, and fresh-session continuation.
+
+### Existing collaboration invariants
+
 **Files carry data; the terminal carries control.** Herdr reads a pane's scrollback, but TUI
 agents render on the alternate screen, where output that scrolls away cannot be recovered at
 any `--lines` value. Every phase therefore writes an artifact file and replies with only its
@@ -145,12 +171,14 @@ the skill has run against a working repository outside its own. The loop, the ar
 the escalation boundary, and the two lifetimes — a bounded run, a partner that outlives it —
 are settled.
 
-Nine helper scripts carry the mechanics: read-only status inspection, run initialization and
-ending, partner attach-or-create and explicit retirement, the artifact check, the guarded key
+Ten shell entry points carry the mechanics: read-only status inspection, context relay
+publication and reading plans, run initialization and ending, partner attach-or-create
+and explicit retirement, the artifact check, the guarded key
 send, the typed approval record with user-visible set grants, and the external state root that
 keeps the lead's authority files where the worker cannot write them. Classification, approval
-authority, and verdicts stay with the lead. An offline suite of 200 cases pins the scripts'
-documented behaviour and runs with no Herdr server; it is documented in
+authority, and verdicts stay with the lead. An offline suite of 200 existing cases and
+18 relay tests pins the scripts' documented behaviour and runs with no Herdr server;
+it is documented in
 [`tests/README.md`](tests/README.md) and deliberately excludes `run-init.sh`'s Git wiring.
 
 Not yet verified against a live Claude worker: the Claude-layout dialog extractor and the

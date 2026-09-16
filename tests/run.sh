@@ -39,4 +39,8 @@ if [ "$found" != yes ]; then
   exit 2
 fi
 
+if ! python3 -B "$tests_dir/relay.py" "$scripts_dir"; then
+  status=1
+fi
+
 exit "$status"
