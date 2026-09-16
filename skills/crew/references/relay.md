@@ -33,7 +33,13 @@ an agent's proposal or requested next action does not grant permission.
 Run the helper from the same workspace directory used for run initialization.
 The run must already contain task.md and state.md. Publication requires it to
 match the validated external active-run pointer; reading a finished run does not.
-Use the same CREW_STATE_DIR setting as the run.
+The lead must put the canonical state parent reported by state-root.sh in task.md's
+Context section. Use that exact value as CREW_STATE_DIR on every publication command,
+even when the lead uses the default location; a new or retained worker need not share
+the lead's environment. Publication reads the active-run pointer but never writes it.
+If the pointer is missing, check both the active run and the supplied setting with
+the lead. If access is refused, report it; do not grant worker write access or move
+authority state into the workspace to make publication succeed.
 
 1. Write a draft inside the run directory using the
    [relay template](../templates/relay.md).
@@ -42,7 +48,7 @@ Use the same CREW_STATE_DIR setting as the run.
 3. Publish the complete draft, then notify the recipient with the returned path.
 
 ~~~sh
-<crew-skill-dir>/scripts/relay.sh append <run-id> \
+CREW_STATE_DIR='<state-parent-from-task-context>' <crew-skill-dir>/scripts/relay.sh append <run-id> \
   --author worker --to lead --kind question \
   --reply-to task.md --file draft-worker.md
 ~~~
@@ -54,7 +60,13 @@ Kinds are request, question, response, result, correction, and note.
 
 File arguments are relative to this run. A response target is task.md, an
 existing report-N.md or review-N.md, or an earlier relay/NNNNNN.md in the same
-run. Put other source references, including explicit cross-session references,
+run. These targets must already exist. The printed workspace-relative path is
+for opening the file or directing the recipient to it, not a file argument to
+the helper. For example, reply to the printed `.crew/<run-id>/relay/000001.md`
+with `--reply-to relay/000001.md`; publish `.crew/<run-id>/draft-worker.md` with
+`--file draft-worker.md`. The helper refuses the `.crew/<run-id>/` prefix in
+file arguments rather than silently interpreting it as another path.
+Put other source references, including explicit cross-session references,
 in Evidence. Link canonical artifacts instead of copying their contents.
 Where exact identity matters, record the source revision or precise evidence
 location. Current task and review artifacts can change; a historical link is
@@ -86,7 +98,7 @@ answers within the frozen task or escalates the actual decision to the user,
 then publishes its response. Once the worker is receptive, send a pointer:
 
 ~~~sh
-herdr agent prompt <worker> "Read .crew/<run-id>/relay/000002.md, answering relay/000001.md. Continue the existing task within its scope. Write the required report and reply with its path." --wait --timeout 600000
+herdr agent prompt <worker> "Read .crew/<run-id>/relay/000002.md, which answers .crew/<run-id>/relay/000001.md. Continue the existing task within its scope. Write the required report and reply with its path." --wait --timeout 600000
 ~~~
 
 A published clarification is distinct from a live free-text permission/trust
@@ -94,8 +106,12 @@ dialog. Existing escalation rules for those dialogs still apply. Never convert
 an unknown or unanswerable live dialog into an assumed relay response.
 
 The lead follows worker relays at every handoff before advancing the phase,
-including when the expected report is already present. A later correction can
-qualify that report. Read each new addressed request and its response chain once,
+including when the expected report is already present and the worker is blocked.
+Both completed-artifact exits use the skill's relay handoff check. A later correction
+can qualify that report; keep the phase open until relevant pending work is resolved.
+Do not prompt a blocked worker with the relay response: follow the existing dialog
+handling first and prompt only when it is receptive.
+Read each new addressed request and its response chain once,
 record the response target, and preserve the round cap and completion checks.
 A pending clarification explains an idle worker with no report; it does not
 authorize further work beyond the task.
@@ -203,6 +219,14 @@ They reject symlinked record paths, gaps, invalid response references, and
 malformed records rather than skipping unknown evidence. Hidden publication
 drafts are ignored. Originals can be inspected manually even when the helper
 refuses an invalid history; refusal never authorizes repair or cleanup.
+
+For an unexpected file in relay/ or summaries/, preserve it and inspect its path,
+contents, and provenance without changing it. A nonmatching filename alone does
+not prove that it is a disposable draft or identify its author. Report the exact
+entry and proposed recovery to the lead. Any move, removal, or other state repair
+requires explicit user authorization through the existing class-(b) workflow.
+Do not rename the file into a hidden entry to bypass validation. Place new drafts
+outside the publication directories as specified above.
 
 The helper validates records on disk to produce a plan; it does not load all
 those records into the model's context. Budget counts exclude task.md, state.md,

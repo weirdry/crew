@@ -33,7 +33,10 @@ def directory(path: Path) -> None:
         raise InvalidRecord(f"not a real directory: {path}")
 
 
-def checked_file(root: Path, relative: str) -> Path:
+def file_argument(relative: str) -> PurePosixPath:
+    if relative.startswith(".crew/"):
+        raise InvalidRecord("file arguments are relative to the run directory; "
+                            f"got {relative!r}; omit the .crew/<run-id>/ prefix")
     parts = PurePosixPath(relative)
     if (
         not relative or parts.is_absolute() or ".." in parts.parts
@@ -41,6 +44,11 @@ def checked_file(root: Path, relative: str) -> Path:
         or any(ord(c) < 32 for c in relative)
     ):
         raise InvalidRecord(f"invalid relative file path: {relative!r}")
+    return parts
+
+
+def checked_file(root: Path, relative: str) -> Path:
+    parts = file_argument(relative)
     path = root
     for part in parts.parts[:-1]:
         path = path / part
@@ -71,7 +79,12 @@ def require_active(root: Path) -> None:
     if result.returncode:
         raise InvalidRecord("state-root.sh could not validate the authority root")
     state = Path(json.loads(result.stdout)["state_root"])
-    current = checked_file(state, ".current").read_text(encoding="utf-8")
+    try:
+        current = checked_file(state, ".current").read_text(encoding="utf-8")
+    except FileNotFoundError:
+        raise InvalidRecord(f"active-run pointer not found at {state / '.current'}; "
+                            "verify an active run exists and use the same workspace and "
+                            "CREW_STATE_DIR as the lead") from None
     if current not in (root.name, root.name + "\n"):
         raise InvalidRecord("requested session is not the active run")
 
@@ -183,14 +196,16 @@ def relays(root: Path) -> list[tuple[dict[str, str], bytes]]:
 
 
 def reply_target(root: Path, relative: str, last: int) -> None:
-    if relative == "task.md" or re.fullmatch(r"(?:report|review)-[1-9][0-9]*\.md", relative):
-        checked_file(root, relative)
-        return
+    file_argument(relative)
+    artifact = relative == "task.md" or re.fullmatch(r"(?:report|review)-[1-9][0-9]*\.md", relative)
     match = re.fullmatch(r"relay/([0-9]{6,})\.md", relative)
-    if match and match[1] == identifier(int(match[1])) and 1 <= int(match[1]) <= last:
+    prior_relay = match and match[1] == identifier(int(match[1])) and 1 <= int(match[1]) <= last
+    if not (artifact or prior_relay):
+        raise InvalidRecord("Responds to must name task.md, a report/review, or an earlier relay in this run")
+    try:
         checked_file(root, relative)
-        return
-    raise InvalidRecord("Responds to must name task.md, a report/review, or an earlier relay in this run")
+    except FileNotFoundError:
+        raise InvalidRecord(f"response target does not exist in this run: {relative!r}") from None
 
 
 def source_digest(records: list[tuple[dict[str, str], bytes]], through: int) -> str:
