@@ -59,3 +59,30 @@ recorded partner's `agent get`; fixture logs are outside the snapshotted state. 
 `stdout_json_paths` assertions inspect JSON fields, and `stdout_absent` forbids output fragments.
 These checks prove the helper's behavior against synthetic fixtures, not live Claude approval
 handling, Herdr server behavior, or protection enforced by an agent sandbox.
+
+## Context relay coverage
+
+The same entry point also runs `tests/relay.py`: 18 standard-library unittest cases
+that invoke the actual relay helper through sequential synthetic exchanges.
+It uses isolated workspaces and external state under /var/tmp, including the
+real state-root validator. A Herdr stub with no permitted calls catches any
+unexpected agent control. The scripts-directory argument applies to both suites,
+so mutation checks can still target an isolated helper copy.
+
+Coverage includes publication and response provenance, incremental and fresh
+reading, session isolation, completed-run reading, source-preserving and successive
+summaries, corrections after compaction, optional byte-budget signals, invalid
+coverage/cursors, changed summary sources, incomplete records, symlinks, and
+concurrent name collisions. Read-only assertions compare workspace and authority
+state around each plan and refusal; plan output excludes message bodies.
+
+Run just the relay suite with:
+
+```sh
+python3 -B tests/relay.py skills/crew/scripts
+```
+
+The [continuation walkthrough](relay-walkthrough.md) identifies the concrete
+file-level outcome and its limits. A scripted synthetic packet is not evidence
+that a fresh model understands it, that model-written summaries preserve every
+real-world fact, or that live Herdr delivered the prompt.

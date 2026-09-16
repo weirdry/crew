@@ -131,6 +131,31 @@ directory, and the inert approval audit copied there at Finishing:
 
 `state.md` makes a run resumable if the lead session dies. Update it at every phase boundary.
 
+### Shared context relays
+
+One run is one collaboration session; its retained partner may outlive that session.
+Read [Context relays](references/relay.md) before using the relay helper. It defines the
+record formats, publication rules, reading order, and optional compaction policy.
+
+Use `.crew/<run-id>/relay/` for substantive questions, answers, rationale, user corrections,
+and unresolved disagreements that the task/report/review artifacts do not already capture.
+Each actor publishes its own completed record with `relay.sh append`. Corrections get new
+records. Lead-published summaries live in `summaries/`; originals remain intact. A relay's
+completion marker never replaces a phase's required report, self-review, or verdict.
+
+On fresh entry or lost context, run `relay.sh read-plan <run-id>`, read its listed files,
+and follow evidence references. Use `--after <id>` only while the same context still
+understands that prefix of this run. There is no persisted reader cursor to inherit.
+The lead links the current next-action relay in `state.md` at phase boundaries.
+At every handoff, read new relays and their response chain before advancing the phase,
+even when the expected report is present. A later correction can qualify that report.
+
+Compaction is manual by default. `read-plan --budget-bytes <chosen-budget>` can suggest it
+from the latest summary plus uncovered relays, without generating anything. Select any
+budget from actual client use; there is no fixed token threshold, automatic summary per
+handoff, or model invocation in the helper. The lead checks a summary's meaning before
+`relay.sh publish-summary`; source hashes check identity, not correctness or approval.
+
 ### Inspecting run status
 
 To inspect progress or an interrupted session, run from the same working directory and with the
@@ -198,6 +223,9 @@ means the snapshot contains attention items or unavailable evidence; JSON remain
 This is a point-in-time, best-effort inspection: records and Herdr may change during the query.
 Recheck before acting and follow the normal supervision, ownership, and approval rules.
 Do not use status output as authorization to resume or clean up.
+For pending conversational context, inspect `relay.sh read-plan <run-id>` separately.
+Status inspection continues to report missing phase artifacts even while a relay question
+awaits an answer; that question does not establish phase completion.
 
 ### What `task.md` must contain
 
@@ -211,6 +239,11 @@ Write these sections, in this order:
 
 Add `## Context`, `## Item <n>`, or `## Likely files touched` when the work needs them, and
 `## Amendments` last when the user accepts a phase 1 finding.
+
+Include the run ID and resolved relay helper/contract paths in `## Context` when delegating.
+Tell the worker to read the current shared context, publish any substantive clarification
+as an addressed relay, and return its path when an answer is needed. Normal report and
+review artifacts remain the deliverables; do not duplicate them merely to create messages.
 
 When the run edits a helper the lead uses to supervise it — `approval.sh`, `answer-dialog.sh` —
 `task.md` says so in three clauses: the lead will not call that helper during the run and answers
@@ -396,6 +429,9 @@ herdr agent prompt <worker> "Read .crew/<run-id>/task.md. Implement it. Write wh
 Rules for prompt shape:
 
 - Point at an input file, name the output file, require `STATUS: done`, ask for only the path back.
+- Include a published relay path when it supplies the current clarification. If the worker
+  needs an answer first, it may return a completed question relay path; supervise that
+  exchange without treating it as the requested implementation report.
 - Never ask the worker to "critique" or "improve" anything open-endedly.
 - Ask closed questions with a legitimate empty answer. For phase 1:
   *"Read task.md and the files it names. Report only concrete cases that would break if this
@@ -451,7 +487,12 @@ repeat:
                          no match or extraction failure → apply the class-(b) escalation and
                                                           approval-scope rule below, then stop
   unknown  → not complete. read the pane, then wait again.
-  idle|done→ artifact present with STATUS: done (phase 3: heading test) ? next phase
+  idle|done→ read new relays and their response chain in this run
+             unanswered worker request or consequential correction addressed to lead ?
+                 read its request and response chain; answer within task.md or escalate;
+                 publish the lead response; prompt the receptive worker with its path;
+                 resume supervision without marking the phase complete
+             : artifact present with STATUS: done (phase 3: heading test) ? next phase
              : re-prompt once, then escalate
 ```
 
