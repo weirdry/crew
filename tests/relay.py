@@ -274,6 +274,25 @@ class RelayTests(unittest.TestCase):
                 self.call("append", "run-1", "--author", "worker", "--to", "lead", "--kind", "question",
                           "--reply-to", "task.md", "--file", "draft.md", status=1, read_only=True)
 
+    def test_relay_preserves_inline_completion_text(self):
+        body = MESSAGE.rstrip("\n") + "\nEnd the report with the exact line STATUS: done"
+        for ending in ("", "\n", "\n\nSTATUS: done", "\n\nSTATUS: done\n"):
+            with self.subTest(ending=ending):
+                record = self.append(body + ending, author="lead", kind="request")
+                published = record.read_text().split("\n\n", 2)[2]
+                self.assertEqual(published, body + "\n\nSTATUS: done\n")
+                self.assertEqual(self.paths(self.plan())[-1], f"relay/{record.name}")
+
+    def test_summary_preserves_inline_completion_text(self):
+        self.two_relays()
+        body = SUMMARY.rstrip("\n") + "\nreport-1.md must end with STATUS: done"
+        self.run.joinpath("summary-draft.md").write_text(body + "\n")
+        self.compact()
+        record = self.run / "summaries/through-000002.md"
+        published = record.read_text().split("\n\n", 2)[2]
+        self.assertEqual(published, body + "\n\nSTATUS: done\n")
+        self.assertEqual(self.plan()["summary"], "summaries/through-000002.md")
+
     def test_symlinked_draft_and_destination_are_refused(self):
         target = self.base / "outside.md"
         target.write_text(MESSAGE)

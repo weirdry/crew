@@ -60,8 +60,10 @@ Where exact identity matters, record the source revision or precise evidence
 location. Current task and review artifacts can change; a historical link is
 not a promise that their current contents equal what the author originally read.
 
-Each author publishes after completing the draft. The helper adds the exact
-STATUS: done terminator, writes a temporary file, and links the complete record
+Each author publishes after completing the draft. The helper accepts an optional
+standalone final STATUS: done line in the draft; the same text within a sentence
+remains message content. It adds the exact STATUS: done terminator, writes a
+temporary file, and links the complete record
 into its numbered name without overwriting an existing file. A sequence collision
 fails; inspect the newly published record before deciding whether to republish.
 Do not blindly resend after an uncertain outcome. Drafts stay in place.
