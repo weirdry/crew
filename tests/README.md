@@ -113,9 +113,15 @@ and homes. They cover deterministic packaging, source/mode/inventory identity,
 archive rejection before extraction, both host installations and repeat no-ops,
 read-only checks, conflict/modified detection, duplicate roots, managed replacement,
 restoration after a failed swap, and preserved interrupted transactions. A
+root-alias regression checks that default, selected and extra paths to the same
+directory remain current while separate development symlinks still conflict.
+Other cases preserve refusal when a resolved parent becomes a symlink, and run
+the documented tar extraction and packaged installer under `umask 077`. A
 stateful fake GitHub service exercises tag/draft/asset publication, retries after
 an accepted upload with a lost response, immutable publication, docs-only skips,
 version reuse refusal, credential-safe redirects and separate consumer evidence.
+An empty draft `starter` asset stays untouched until simulated operator recovery;
+published and other conflicting assets never receive that recovery advice.
 An actual candidate is installed and its packaged helper entry points executed.
 No test sends a publication request or modifies a normal skill installation.
 
