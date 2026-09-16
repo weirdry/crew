@@ -241,6 +241,11 @@ Add `## Context`, `## Item <n>`, or `## Likely files touched` when the work need
 `## Amendments` last when the user accepts a phase 1 finding.
 
 Include the run ID and resolved relay helper/contract paths in `## Context` when delegating.
+Also include the exact canonical state parent from `state-root.sh`'s `state_parent` field.
+Tell the worker to set `CREW_STATE_DIR` to that value on every relay publication command,
+including when the lead uses the default location. Do not assume a new or retained worker
+inherits the lead's shell environment. The worker needs read access to the active-run pointer;
+this context grants no write access to authority state. Report an access refusal to the lead.
 Tell the worker to read the current shared context, publish any substantive clarification
 as an addressed relay, and return its path when an answer is needed. Normal report and
 review artifacts remain the deliverables; do not duplicate them merely to create messages.
@@ -288,6 +293,9 @@ Ask for the `## Phase 3 self-review` heading by name in the phase 3 prompt; use 
 exit condition instead of the already-true artifact check.
 
 ## Phases
+
+Every row also reads the current shared relay context. Before advancing, apply the
+relay handoff check in the Supervision loop, including when an artifact is already complete.
 
 | # | Actor | Reads | Writes | Exit condition |
 | --- | --- | --- | --- | --- |
@@ -441,6 +449,21 @@ Rules for prompt shape:
 
 Run this after every prompt.
 
+**Relay handoff check:** before either completed-artifact exit below, read new relays and
+their response chains. Use fresh re-entry if prior context is unavailable. A read refusal
+means unavailable evidence: stop and escalate instead of treating it as an empty history.
+Resolve unanswered requests and consequential corrections within the frozen task, or
+escalate the decision and stop the round. Publish any needed lead response and track the
+remaining action in `state.md`. A response alone does not prove that the required artifact
+has incorporated a correction. Keep the current phase while relevant work remains pending.
+The check is ready only when that work is resolved and the phase table's artifact exit
+condition holds, including the phase 3 self-review heading check.
+
+If work remains pending, prompt only a receptive worker with the response and required
+action. A blocked worker must first follow the existing dialog handling below; a relay
+response never answers a live permission or trust dialog. Recheck the handoff conditions
+before advancing after the worker resumes.
+
 ```
 prompt --wait  →  settled
 same_dialog_repeats = 0
@@ -452,7 +475,9 @@ repeat:
   working  → no_dialog_reads = 0
              herdr agent wait <worker> --timeout <ms>     # server blocks; costs no tokens
   blocked  → pane = herdr agent read <worker> --source visible
-             artifact-done.sh <artifact-path> exits 0 ? next phase
+             phase artifact exit condition holds ? apply relay handoff check
+                 ready → next phase
+                 pending → keep current phase; handle the live dialog below
              free-text question without options ? apply the free-text rule below
              no explicit confirmation prompt with a selectable option list ?
                no_dialog_reads += 1
@@ -487,13 +512,11 @@ repeat:
                          no match or extraction failure → apply the class-(b) escalation and
                                                           approval-scope rule below, then stop
   unknown  → not complete. read the pane, then wait again.
-  idle|done→ read new relays and their response chain in this run
-             unanswered worker request or consequential correction addressed to lead ?
-                 read its request and response chain; answer within task.md or escalate;
-                 publish the lead response; prompt the receptive worker with its path;
-                 resume supervision without marking the phase complete
-             : artifact present with STATUS: done (phase 3: heading test) ? next phase
-             : re-prompt once, then escalate
+  idle|done→ apply relay handoff check
+             ready → next phase
+             pending action → prompt the receptive worker with the lead response and required action;
+                              resume supervision without marking the phase complete
+             otherwise → re-prompt once for the missing phase artifact, then escalate
 ```
 
 In the loop, resolve the helper calls as:

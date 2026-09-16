@@ -227,6 +227,51 @@ class RelayTests(unittest.TestCase):
                           "--reply-to", reply, "--file", "draft.md", status=1, read_only=True)
         self.assertFalse((self.run / "relay").exists())
 
+    def test_worker_needs_the_leads_state_setting_for_publication(self):
+        self.append()
+        configured = self.environment["CREW_STATE_DIR"]
+        other_state = self.base / "different-worker-state"
+        self.environment["CREW_STATE_DIR"] = str(other_state)
+        try:
+            result = self.call("append", "run-1", "--author", "worker", "--to", "lead",
+                               "--kind", "question", "--reply-to", "task.md", "--file", "draft.md",
+                               status=1, read_only=True)
+            self.assertIn("active-run pointer not found at", result.stderr)
+            self.assertIn(str(other_state), result.stderr)
+            self.assertIn("CREW_STATE_DIR", result.stderr)
+            self.assertIn("lead", result.stderr)
+            self.assertNotIn("[Errno", result.stderr)
+            self.assertEqual(self.plan()["latest_relay"], 1)
+            self.assertFalse(other_state.exists())
+        finally:
+            self.environment["CREW_STATE_DIR"] = configured
+        self.append()
+        self.assertEqual(self.plan()["latest_relay"], 2)
+        self.assertEqual(self.before_authority, snapshot_tree(self.state))
+
+    def test_workspace_paths_explain_the_run_relative_argument_contract(self):
+        record = self.append()
+        printed_path = str(record.relative_to(self.workspace))
+        for reply, draft in ((printed_path, "draft.md"), ("task.md", ".crew/run-1/draft.md")):
+            with self.subTest(reply=reply, draft=draft):
+                result = self.call("append", "run-1", "--author", "lead", "--to", "worker",
+                                   "--kind", "response", "--reply-to", reply, "--file", draft,
+                                   status=1, read_only=True)
+                self.assertIn("file arguments are relative to the run directory", result.stderr)
+                self.assertIn(printed_path if reply == printed_path else draft, result.stderr)
+                self.assertNotIn("[Errno", result.stderr)
+        self.append(ANSWER, reply="relay/000001.md", author="lead", kind="response")
+        self.assertEqual(self.plan()["latest_relay"], 2)
+
+    def test_missing_response_target_has_a_contextual_error(self):
+        result = self.call("append", "run-1", "--author", "worker", "--to", "lead",
+                           "--kind", "correction", "--reply-to", "report-2.md", "--file", "draft.md",
+                           status=1, read_only=True)
+        self.assertIn("response target does not exist in this run", result.stderr)
+        self.assertIn("report-2.md", result.stderr)
+        self.assertNotIn("[Errno", result.stderr)
+        self.assertFalse((self.run / "relay").exists())
+
     def test_invalid_cursor_is_not_silently_reinterpreted(self):
         self.append()
         self.call("read-plan", "run-1", "--after", "2", status=1, read_only=True)

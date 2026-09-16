@@ -32,6 +32,21 @@ that subsequent inspections leave all records unchanged. Further tests cover
 successive summaries, changed sources, invalid records, session separation, and
 publication collisions.
 
+## Supervision inspection scenario
+
+For a manual review of the skill instructions, suppose a worker publishes a
+correction qualifying report-1.md, leaves the report's completion marker in place,
+and then blocks on a dialog. Trace the blocked branch in the Supervision loop:
+the completed artifact must pass the same relay handoff check as the idle/done
+branch. The lead reads the correction before advancing and keeps the phase open
+while any resulting work remains pending. A published response does not by itself
+establish that the report is corrected. The lead handles the live dialog through
+the existing approval rules before prompting a receptive worker to continue.
+
+This is a documentation inspection scenario, not an automated simulation or a
+live-agent observation. The phase table, both completion exits, and the relay
+contract must agree on this behavior.
+
 ## Evidence boundary
 
 This is deterministic file-protocol evidence. The summary is authored as a
