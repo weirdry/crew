@@ -1,15 +1,16 @@
 {
+  "encoded_values": {"grant":{"kind":"command","root":"{grant_root}","template":"rm -rf -- {path}"},"grant_command":{"key":"rm -rf -- {grant_root}-outside/grant-alpha","kind":"command"}},
   "id": "answer-dialog-pinned-grant-containment-refused",
   "script": "answer-dialog.sh",
-  "args": ["--expected-command-b64", "eyJrZXkiOiJybSAtcmYgLS0gL3ByaXZhdGUvdG1wL2dyYW50LWFscGhhIiwia2luZCI6ImNvbW1hbmQifQ==", "--expected-grant-b64", "eyJraW5kIjoiY29tbWFuZCIsInJvb3QiOiIvcHJpdmF0ZS92YXIvdG1wIiwidGVtcGxhdGUiOiJybSAtcmYgLS0ge3BhdGh9In0=", "crew-worker", "enter"],
+  "args": ["--expected-command-b64", "{grant_command_b64}", "--expected-grant-b64", "{grant_b64}", "crew-worker", "enter"],
   "setup": {"dirs": [".crew/run-1"], "files": {"{state}/.current": "run-1\n", "{state}/worker.json": {"json": {"version": 1, "worker_pane_id": "worker-1", "worker_name": "crew-worker"}}}},
   "herdr": [
     {"argv": ["agent", "get", "crew-worker"], "results": [
       {"agent": {"pane_id": "worker-1", "agent_status": "blocked", "state_change_seq": 10}},
       {"agent": {"pane_id": "worker-1", "agent_status": "blocked", "state_change_seq": 10}}
     ]},
-    {"argv": ["agent", "read", "crew-worker", "--source", "visible", "--lines", "120", "--format", "text"], "results": [{"stdout": "Would you like to run the following command?\n\n$ rm -rf -- /private/tmp/grant-alpha\n\n1. Yes\n2. No\n"}]},
-    {"argv": ["agent", "read", "crew-worker", "--source", "visible", "--lines", "200", "--format", "text"], "results": [{"stdout": "Would you like to run the following command?\n\n$ rm -rf -- /private/tmp/grant-alpha\n\n1. Yes\n2. No\n"}]}
+    {"argv": ["agent", "read", "crew-worker", "--source", "visible", "--lines", "120", "--format", "text"], "results": [{"stdout": "Would you like to run the following command?\n\n$ rm -rf -- {grant_root}-outside/grant-alpha\n\n1. Yes\n2. No\n"}]},
+    {"argv": ["agent", "read", "crew-worker", "--source", "visible", "--lines", "200", "--format", "text"], "results": [{"stdout": "Would you like to run the following command?\n\n$ rm -rf -- {grant_root}-outside/grant-alpha\n\n1. Yes\n2. No\n"}]}
   ],
   "expect": {
     "status": 3,
