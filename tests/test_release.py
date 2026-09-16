@@ -278,6 +278,86 @@ class Releases(unittest.TestCase):
         self.args.codex_root = linked
         self.assertEqual(self.run_install()[0]['status'], 'conflicting')
 
+    def test_root_aliases_remain_current_for_default_selected_and_extra_roots(self):
+        for host, folder in [('codex', '.agents'), ('claude', '.claude')]:
+            with self.subTest(host=host):
+                actual = self.work / ('dotfiles-' + host)
+                actual.mkdir()
+                normal = self.home / folder
+                normal.symlink_to(actual, target_is_directory=True)
+                self.args.host, self.args.inactive = host, True
+                result = self.run_install()[0]
+                self.assertEqual(result['action'], 'installed')
+                self.assertEqual(result['destination'], str(actual / 'skills/crew'))
+                alias = self.work / ('alias-' + host)
+                alias.symlink_to(actual / 'skills', target_is_directory=True)
+                self.args.extra_skill_root = [normal / 'skills', alias, actual / 'skills']
+                before = {str(p): (p.lstat().st_mode, p.lstat().st_mtime_ns) for p in actual.rglob('*')}
+                self.args.inactive = False
+                for selected in [None, actual / 'skills', alias]:
+                    setattr(self.args, host + '_root', selected)
+                    for command in ['check', 'install']:
+                        self.args.command = command
+                        result = self.run_install()[0]
+                        self.assertEqual(result['status'], 'current')
+                        self.assertEqual(result['destination'], str(actual / 'skills/crew'))
+                self.assertEqual(before, {str(p): (p.lstat().st_mode, p.lstat().st_mtime_ns) for p in actual.rglob('*')})
+                self.assertEqual(normal.readlink(), actual)
+                self.assertEqual(alias.readlink(), actual / 'skills')
+                self.args.extra_skill_root = []
+
+    def test_selected_temporary_root_uses_its_canonical_path(self):
+        # /tmp is a symlink on macOS, a regular directory on Linux.
+        with tempfile.TemporaryDirectory(prefix='crew-root-', dir='/tmp') as temporary:
+            self.args.host = 'codex'
+            self.args.codex_root = Path(temporary) / 'new/skills'
+            self.args.extra_skill_root = [self.args.codex_root.resolve()]
+            result = self.run_install()[0]
+            self.assertEqual(result['action'], 'installed')
+            self.assertEqual(result['destination'], str(self.args.codex_root.resolve() / 'crew'))
+            self.args.command = 'check'
+            self.assertEqual(self.run_install()[0]['status'], 'current')
+
+    def test_separate_crew_symlink_still_counts_as_conflicting_discovery(self):
+        self.args.host = 'codex'
+        self.run_install()
+        before = inventory(self.destination)
+        other = self.work / 'other-root'
+        other.mkdir()
+        (other / 'crew').symlink_to(self.destination, target_is_directory=True)
+        self.args.extra_skill_root = [other]
+        result = self.run_install()[0]
+        self.assertEqual(result['status'], 'conflicting')
+        self.assertEqual(result['conflicts'], [str(other / 'crew')])
+        self.assertEqual(inventory(self.destination), before)
+        self.assertEqual((other / 'crew').readlink(), self.destination)
+
+    def test_parent_changed_after_root_resolution_is_refused(self):
+        selected, other = self.work / 'selected', self.work / 'other'
+        selected.mkdir()
+        other.mkdir()
+        self.args.codex_root = selected
+        with mock.patch('pathlib.Path.cwd', return_value=self.work):
+            destination, conflicts = install.host_paths(self.args, 'codex')
+        self.assertEqual(conflicts, [])
+        selected.rmdir()
+        selected.symlink_to(other, target_is_directory=True)
+        with self.assertRaisesRegex(Invalid, 'unsafe directory'):
+            install.replace_managed(self.payload, destination, self.wanted)
+        self.assertEqual(list(other.iterdir()), [])
+
+    def test_documented_extraction_and_install_preserve_modes_under_restrictive_umask(self):
+        payload = self.work / 'extracted'
+        payload.mkdir(mode=0o700)
+        subprocess.run(['tar', '-xzpf', str(self.archive), '-C', str(payload)], check=True, umask=0o077)
+        self.assertEqual(load_payload(payload), self.manifest)
+        for command in ['install', 'check', 'install']:
+            args = [sys.executable, '-B', str(payload / 'install.py'), command,
+                    '--host', 'all', '--home', str(self.home), '--inactive']
+            result = subprocess.run(args, cwd=self.work, capture_output=True, text=True, umask=0o077)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertEqual([r['status'] for r in json.loads(result.stdout)['results']], ['current', 'current'])
+
     def test_duplicate_legacy_custom_and_workspace_roots(self):
         roots = [self.home / '.codex/skills', self.work / 'custom', self.work / '.agents/skills']
         for root in roots:
@@ -432,6 +512,44 @@ class Releases(unittest.TestCase):
         with self.assertRaisesRegex(Invalid, 'asset conflict'): self.publish()
         self.assertEqual(len(self.api.calls), before)
         self.assertTrue(self.api.data['draft'])
+
+    def test_empty_starter_draft_stops_until_explicit_fixture_recovery(self):
+        self.api.fail_upload = 'SHA256SUMS'
+        with self.assertRaises(Invalid):
+            self.publish()
+        asset = next(a for a in self.api.data['assets'] if a['name'] == 'SHA256SUMS')
+        asset.update(state='starter', size=0)
+        self.api.bytes[asset['id']] = b''
+        calls, remote = len(self.api.calls), copy.deepcopy(self.api.data)
+        with self.assertRaisesRegex(Invalid, 'incomplete draft upload: SHA256SUMS'):
+            self.publish()
+        self.assertEqual(len(self.api.calls), calls)
+        self.assertEqual(self.api.data, remote)
+        self.assertEqual(self.api.bytes[asset['id']], b'')
+        matching = {a['id']: self.api.bytes[a['id']] for a in remote['assets'] if a['id'] != asset['id']}
+        # Simulate the documented, explicitly authorized operator action in the fake only.
+        self.api.data['assets'].remove(asset)
+        del self.api.bytes[asset['id']]
+        self.assertTrue(self.publish()['eligible'])
+        self.assertTrue(all(self.api.bytes[k] == value for k, value in matching.items()))
+        self.assertEqual(len(self.api.data['assets']), 3)
+
+    def test_empty_starter_advice_does_not_apply_to_other_conflicts(self):
+        self.api.bytes[99] = b''
+        for draft, immutable, state, size, message in [
+            (True, False, 'starter', 0, 'incomplete draft upload'),
+            (True, False, 'starter', 1, 'inspect the draft conflict'),
+            (True, False, 'uploaded', 0, 'inspect the draft conflict'),
+            (False, True, 'starter', 0, 'use a correction version'),
+            (True, True, 'starter', 0, 'use a correction version'),
+        ]:
+            with self.subTest(draft=draft, immutable=immutable, state=state, size=size):
+                release = {'draft': draft, 'immutable': immutable,
+                           'assets': [{'id': 99, 'name': 'asset', 'state': state, 'size': size}]}
+                with self.assertRaisesRegex(Invalid, message):
+                    publish.verify_assets(self.api, release, {'asset': b'expected'})
+        self.assertEqual(self.api.calls, [])
+        self.assertEqual(self.api.bytes[99], b'')
 
     def test_docs_only_publication_preserves_original_identity(self):
         first = self.publish()

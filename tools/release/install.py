@@ -82,20 +82,23 @@ def host_paths(args, host):
     home = args.home.expanduser().resolve()
     normal = home / (".agents/skills" if host == "codex" else ".claude/skills")
     selected = getattr(args, f"{host}_root") or normal
-    destination = Path(os.path.abspath(selected.expanduser())) / "crew"
-    candidates = {normal / "crew", destination}
+    roots = {normal, selected}
     if host == "codex":
-        candidates.add(home / ".codex/skills/crew")
+        roots.add(home / ".codex/skills")
         if args.home == Path.home() and os.environ.get("CODEX_HOME"):
-            candidates.add(Path(os.path.abspath(os.environ["CODEX_HOME"])) / "skills/crew")
-        candidates.add(Path("/etc/codex/skills/crew"))
-    for root in args.extra_skill_root:
-        candidates.add(Path(os.path.abspath(root.expanduser())) / "crew")
+            roots.add(Path(os.environ["CODEX_HOME"]) / "skills")
+        roots.add(Path("/etc/codex/skills"))
+    roots.update(args.extra_skill_root)
     # Check the invocation's repository scope, without scanning unrelated workspaces.
     for parent in (Path.cwd(), *Path.cwd().parents):
-        candidates.add(parent / (".agents/skills/crew" if host == "codex" else ".claude/skills/crew"))
+        roots.add(parent / (".agents/skills" if host == "codex" else ".claude/skills"))
         if (parent / ".git").exists() or parent == home:
             break
+    # Resolve roots once, then append the managed name. Never resolve away a
+    # development symlink at the crew directory itself or treat it as ownership.
+    destinations = {root: root.expanduser().resolve() / "crew" for root in roots}
+    destination = destinations[selected]
+    candidates = set(destinations.values())
     conflicts = sorted(str(p) for p in candidates if p != destination and exists(p))
     return destination, conflicts
 
@@ -187,7 +190,7 @@ def main():
     args = parser.parse_args()
     try:
         results = run(args)
-    except (Invalid, ValueError, OSError) as exc:
+    except (Invalid, ValueError, OSError, RuntimeError) as exc:
         print(json.dumps({"status": "error", "reason": str(exc)}))
         return 2
     print(json.dumps({"results": results}, sort_keys=True))

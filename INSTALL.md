@@ -38,7 +38,7 @@ curl --fail --location --output SHA256SUMS "${crew_url}/SHA256SUMS"
 shasum -a 256 -c SHA256SUMS
 # Continue only if the checksum succeeds. Extract the verified official archive.
 mkdir payload
-tar -xzf "crew-v${crew_version}.tar.gz" -C payload
+tar -xzpf "crew-v${crew_version}.tar.gz" -C payload
 python3 -B payload/install.py install --host all --inactive
 python3 -B payload/install.py check --host all
 )
@@ -53,6 +53,8 @@ No permanently installed global CLI or unchecked mutable bootstrap is required.
 
 The installer verifies the entire extracted payload before examining host
 installations. The archive digest and installed-content digest are distinct.
+The extraction command preserves the archive's file modes even with a restrictive
+umask such as `077`; the installer checks those modes as part of file identity.
 Checksums detect corruption or drift; trust in the official release comes from
 GitHub's HTTPS identity and immutable release/tag/assets, not a local marker.
 
@@ -76,9 +78,17 @@ workspace's ancestor skill locations. It does not inventory unrelated workspaces
 plugins, enterprise policy or every host-specific custom discovery setting.
 Review the host's skill selector in a fresh session for those additional sources.
 
-Any other matching location is reported before that host is written. Symlinked
-destinations and skill-root parents are refused. The home path is resolved once
-so a symlinked home can still use its canonical personal directories.
+Home and skill-root paths are resolved before inspecting installations. This
+supports macOS aliases such as `/tmp` and `/var/tmp`, and dotfile-managed roots
+such as a symlinked `~/.claude`. Paths to the same resolved skill root count as
+one location, including defaults, selected roots and declared extra roots.
+The reported destination is the canonical root followed by `/crew`.
+
+Any other Crew location is reported before that host is written. The final
+`crew` directory is never resolved through a symlink: development links remain
+conflicts, including a separate discovery entry that points to a managed copy.
+The installer keeps the resolved destination for the operation and rechecks its
+parents before writing; a parent that has become a symlink is refused.
 
 ## Read-only check results
 
@@ -126,4 +136,4 @@ establish that it can read newer retained state; check concrete compatibility
 before deliberately installing an older version.
 
 Host discovery references: [Codex](https://learn.chatgpt.com/docs/build-skills#where-codex-loads-local-skills)
-and [Claude Code](https://code.claude.com/docs/en/skills#choose-where-skills-load).
+and [Claude Code](https://code.claude.com/docs/en/skills#where-skills-live).

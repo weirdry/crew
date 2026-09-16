@@ -105,8 +105,14 @@ def verify_assets(api, release, expected, complete=True):
     if complete:
         require(set(assets) == set(expected), "required remote assets missing")
     for name, asset in assets.items():
+        draft = release.get("draft") is True and release.get("immutable") is not True
+        require(not (draft and asset.get("state") == "starter" and asset.get("size") == 0),
+                f"incomplete draft upload: {name} (asset {asset['id']}); preserve metadata and follow "
+                "the authorized empty-starter recovery in RELEASING.md before retrying")
+        recovery = ("preserve it and inspect the draft conflict; see RELEASING.md" if draft else
+                    "preserve it and use a correction version")
         require(asset["state"] == "uploaded" and api.asset_bytes(asset) == expected[name],
-                f"remote asset conflict: {name}; preserve it and use a correction version")
+                f"remote asset conflict: {name}; {recovery}")
 
 
 def published_identity(api, release, manifest, expected):

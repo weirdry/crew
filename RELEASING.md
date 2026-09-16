@@ -157,6 +157,7 @@ If artifacts have expired, rerun all jobs for that source.
 | No tag/Release | Create exact tag and draft, attach and verify all assets, publish |
 | Matching tag, no Release | Continue with the draft |
 | Matching partial draft | Preserve matching uploads and upload missing assets only |
+| Draft contains an empty `starter` asset after an upload failure | Stop for the explicit operator recovery below; do not delete automatically |
 | Wrong source, conflicting bytes, duplicate or unexpected assets | Stop; preserve evidence and resolve deliberately |
 | Exact source already published and immutable | Verify existing bytes, then retry public consumption |
 | Publication succeeded but consumption failed | Keep it published; report verification incomplete and retry consumption/evidence |
@@ -169,6 +170,26 @@ Never delete/recreate a tag, replace a published asset, silently force a draft
 conflict, or report a published-but-unverified version as unpublished. If the
 artifact itself is defective, publish a reviewed correction version. A docs-only
 push does not repair an earlier incomplete consumer run; retry that original run.
+
+### Empty draft upload after a 502
+
+GitHub documents that an upload returning `502 Bad Gateway` can leave an empty
+asset in the `starter` state. This is an incomplete upload, not a published
+artifact correction. The publisher refuses it and names the asset; it never
+deletes remote assets automatically.
+
+Before recovery, preserve the failed run and asset metadata, then verify that the
+Release is still a **draft**, is not immutable, and its tag and source match the
+candidate. Confirm the specific asset ID, expected filename, `state: starter`,
+and `size: 0`. Obtain explicit maintainer authorization to delete **only that
+empty asset**, recheck these conditions immediately before deletion, and rerun
+the same source workflow. Existing matching uploads remain intact, and the
+missing asset is uploaded and verified through the normal draft path.
+
+This procedure does not authorize deleting nonempty, uploaded, unexpected or
+published assets, altering a tag, or removing a whole Release. If any condition
+differs, preserve the conflict and investigate it. See GitHub's
+[upload failure documentation](https://docs.github.com/en/rest/releases/assets#upload-a-release-asset).
 
 ## Acceptance and limits
 
@@ -186,6 +207,6 @@ Herdr delivery, permission dialogs or worker sandbox access to the lead's state.
 Those limits remain explicit in the release notes. No release job starts agents,
 installs into a normal workstation, or reads/writes retained Crew runtime state.
 
-References: [GitHub immutable releases](https://docs.github.com/en/repositories/releasing-projects-on-github/about-releases#immutable-releases),
+References: [GitHub immutable releases](https://docs.github.com/en/code-security/concepts/supply-chain-security/immutable-releases),
 [repository setting API](https://docs.github.com/en/enterprise-cloud@latest/rest/repos/repos#check-if-immutable-releases-are-enabled-for-a-repository),
 and [Release API](https://docs.github.com/en/rest/releases/releases).
