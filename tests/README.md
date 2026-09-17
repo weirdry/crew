@@ -138,24 +138,39 @@ Herdr permission handling or fresh-agent comprehension.
 Node.js 22.20+, npm, Git, Python 3.11+ and the fetched `v0.1.0` tag. It invokes
 the documented `skills@1.6.0` npm package in a disposable home with isolated
 host configuration, npm cache and temporary files, and no inherited credentials.
-It compares every installed skill file and executable bit with the published
-Git tree, executes completion/relay helpers in both layouts, and checks pinned
-update and re-add behavior. It deliberately modifies only a synthetic installed
-copy to demonstrate that the third-party tool does not offer managed drift
-protection. The test never starts agents or touches normal installations/state.
+Live installation and re-add compare every installed file and executable bit
+with the published Git tree. Completion/relay helpers run in both layouts before
+the controlled scenarios. Source metadata must match the selected repository,
+tag and path; its hash must equal either the Git tree SHA or the Skills CLI 1.6.0
+content hash independently calculated from published Git blobs. A fallback hash
+alone is not a failure, and arbitrary hashes are refused.
 
-Before the unchanged-update scenario, the lock's source hash must match the
-published Git tree SHA. A fallback content hash from an unavailable GitHub tree
-API causes an explicit prerequisite failure before any local edit or update;
-rerun when the API is available. The test does not add credentials or silently
-skip this case. Same-tag updates can replace local edits when the hash source
-changes, as described in the installation evidence.
+The Node observer in `skill-installer-http.cjs` passes through live requests and
+logs tree-request HTTP status, rate-limit/retry headers, or exception name and
+cause code. It records no request headers, credentials or response bodies. A
+failure after installation therefore preserves the evidence needed to separate
+HTTP rejection from a transport error; a fallback hash alone cannot identify
+the original API failure.
+
+Update scenarios use the real CLI and Git downloads, with only the tree API
+response controlled. A successful response is built from `git ls-tree` at the
+published tag; HTTP 503 forces the CLI's Git fallback. The suite verifies local
+edit preservation with a stable tree hash (API and Git paths), preservation with
+a stable content hash, and same-tag replacement when API access returns after
+a fallback-hash installation. It never seeds or rewrites the CLI's lock file.
+Each controlled request is checked for the exact tag URL and expected status.
 
 The update validator rejects source-check failures even when the CLI exits 0 and
 also prints "up to date". A regression scenario runs the real pinned CLI with
-HTTP fetch and Git clone deliberately failing, verifies both failure paths were
+the tree API and Git clone deliberately failing, verifies both failure paths were
 exercised, and requires the validator to reject that output. The fixture reuses
 the temporary npm cache and leaves installed files and the source record intact.
+
+Live installation results and controlled update results are reported separately.
+The test does not add credentials, skip update cases when the API is unavailable,
+or claim controlled responses prove live API availability. Only synthetic
+installed copies are edited; no agents, normal installations or runtime state
+are touched. npm and Git network failures still fail the smoke test.
 
 The Python 3.11 Linux/macOS CI jobs run it after candidate validation. It remains
 outside the offline `tests/ci.sh` suite and the Release workflow. See the
