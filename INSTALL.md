@@ -9,8 +9,9 @@ npx skills@1.6.0 add 'weirdry/crew#v0.1.0' -g -a codex claude-code
 ```
 
 Skills CLI fetches the selected Git tag and installs `skills/crew`, including
-its helpers, references and templates. Keep the confirmation prompts and review
-the destinations. This example selects the already published **v0.1.0**;
+its helpers, references and templates. Keep the prompts, accept the default
+**Symlink (Recommended)** installation method, and review the destinations.
+The layout below assumes that method. This example selects the published **v0.1.0**;
 choose another published tag from [Releases](https://github.com/weirdry/crew/releases)
 when deliberately updating. `skills@1.6.0` pins the installation tool;
 `#v0.1.0` independently pins Crew. Do not use `weirdry/crew@v0.1.0`:
@@ -42,8 +43,10 @@ discovery by the installer, not a content-integrity check or live host operation
 ### Selecting and updating a version
 
 The recommended command stays on the selected tag.
-`npx skills@1.6.0 update crew -g` checks the recorded ref; it does not select a
-newer Crew release tag. Bare
+`npx skills@1.6.0 update crew -g` operates on the recorded ref; it does not select a
+newer Crew release tag. It can still reinstall that unchanged tag and replace
+local edits, so preserve edits and end affected Crew sessions before running
+`update` as well as `add`. Bare
 `weirdry/crew` follows the repository's default branch and is not the pinned
 release path described here.
 

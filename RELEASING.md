@@ -152,6 +152,16 @@ note update leaves the previous notes plus the producing-run link; the workflow
 is incomplete until the evidence step is retried successfully. Never infer a
 completed release from an uploaded archive alone.
 
+## After publication
+
+After publication and public consumption succeed, update the installation
+examples in README/INSTALL and `TAG` in `tests/skill-installers.py` together on
+`dev` to the newly verified published tag, then rerun the installer smoke test.
+Keep dated historical evidence and published tags/assets unchanged. Because
+`INSTALL.md` is a release input, include its update in the next planned version
+and changelog under the existing rules; this maintenance step does not require
+an immediate additional release.
+
 ## Retry and correction rules
 
 Inspect the failed run and the actual remote tag, Release, and assets before
