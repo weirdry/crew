@@ -86,8 +86,11 @@ state fields shown in the file table, and then update `<state>/.current`:
 state_json=$(<crew-skill-dir>/scripts/state-root.sh) || exit
 state=$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["state_root"])' "$state_json") || exit
 mkdir -p "$state"
-exclude_file=$(git rev-parse --path-format=absolute --git-path info/exclude)
-grep -qx '.crew/' "$exclude_file" 2>/dev/null || printf '%s\n' '.crew/' >> "$exclude_file"
+exclude_file=$(git rev-parse --path-format=absolute --git-path info/exclude) || exit
+if ! grep -Fqx '.crew/' "$exclude_file" 2>/dev/null; then
+  # Start a new line even when the existing file has no trailing newline.
+  printf '\n%s\n' '.crew/' >> "$exclude_file" || exit 1
+fi
 if [ -e "$state/.current" ]; then
   IFS= read -r current_run < "$state/.current"
   printf 'current_run=%s\noutcome=current-exists\n' "$current_run" >&2
@@ -442,8 +445,10 @@ Rules for prompt shape:
   exchange without treating it as the requested implementation report.
 - Never ask the worker to "critique" or "improve" anything open-endedly.
 - Ask closed questions with a legitimate empty answer. For phase 1:
-  *"Read task.md and the files it names. Report only concrete cases that would break if this
-  plan is followed as written. If there are none, reply with the single word 없음."*
+  *"Read `.crew/<run-id>/task.md` and the files it names. Write only concrete cases that would
+  break if this plan is followed as written to `.crew/<run-id>/plan-check.md`. If there are
+  none, write `없음` in that file. End the file with the line `STATUS: done`. Reply with only
+  that path."*
 
 ## Supervision loop
 
@@ -731,7 +736,7 @@ receipt before removing it. Never use `--current` for cleanup.
   IFS= read -r current_run < "$state/.current"
   test "$current_run" = "$run_id" || exit 1
   test -d ".crew/$run_id" || exit 1
-  python3 - "$state/$run_id/approvals.jsonl" ".crew/$run_id/approvals.audit.jsonl" <<'PY'
+  python3 - "$state/$run_id/approvals.jsonl" ".crew/$run_id/approvals.audit.jsonl" <<'PY' || exit 1
   from pathlib import Path
   import os, stat, sys
   source, audit = map(Path, sys.argv[1:])

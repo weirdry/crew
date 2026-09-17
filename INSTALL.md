@@ -5,16 +5,16 @@
 For a new personal installation in Codex and Claude Code:
 
 ```sh
-npx skills@1.6.0 add 'weirdry/crew#v0.1.1' -g -a codex claude-code
+npx skills@1.6.0 add 'weirdry/crew#v0.1.2' -g -a codex claude-code
 ```
 
 Skills CLI fetches the selected Git tag and installs `skills/crew`, including
 its helpers, references and templates. Keep the prompts, accept the default
 **Symlink (Recommended)** installation method, and review the destinations.
-The layout below assumes that method. This example selects the published **v0.1.1**;
+The layout below assumes that method. This example selects the published **v0.1.2**;
 choose another published tag from [Releases](https://github.com/weirdry/crew/releases)
 when deliberately updating. `skills@1.6.0` pins the installation tool;
-`#v0.1.1` independently pins Crew. Do not use `weirdry/crew@v0.1.1`:
+`#v0.1.2` independently pins Crew. Do not use `weirdry/crew@v0.1.2`:
 the `@` shorthand selects a skill name, not a Git tag.
 
 Installation requires Node.js **22.20+**, npm, Git and GitHub network access.
@@ -64,7 +64,7 @@ lookup failure. Treat `Failed to check` as an unsuccessful check even if an
 If Codex provides `$skill-installer`, ask it:
 
 ```text
-$skill-installer Install skills/crew from weirdry/crew at tag v0.1.1 using the Git method (--method git). Preserve any existing installation and report its destination.
+$skill-installer Install skills/crew from weirdry/crew at tag v0.1.2 using the Git method (--method git). Preserve any existing installation and report its destination.
 ```
 
 The tested helper preserves executable permissions with `--method git` and
@@ -117,14 +117,14 @@ old installation before changing it, and start a fresh agent session afterwards.
 
 Select an exact release from GitHub. Check its tag, source commit, maturity,
 known limitations and public-download verification evidence. The following
-example uses the published 0.1.1 release.
+example uses the published 0.1.2 release.
 
 Run in a new, disposable download directory:
 
 ```sh
 (
 set -eu
-crew_version=0.1.1
+crew_version=0.1.2
 crew_url="https://github.com/weirdry/crew/releases/download/v${crew_version}"
 curl --fail --location --output "crew-v${crew_version}.tar.gz" \
   "${crew_url}/crew-v${crew_version}.tar.gz"

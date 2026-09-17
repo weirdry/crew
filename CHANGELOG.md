@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.1.3
+
+- Preserve the active-run pointer when the documented manual approval-audit copy
+  fails, and reliably exclude `.crew/` in the manual initialization example.
+- Align the phase-1 prompt with the required plan-check artifact, completion
+  marker and path-only response. Make the relay walkthrough accessible from an
+  installed skill through a published repository link.
+- Refresh packaged installation examples to the verified published v0.1.2 tag
+  alongside these skill corrections. Collaboration helpers, the managed
+  installer and retained-state formats are unchanged.
+
+Live Herdr behavior and fresh-agent comprehension remain unverified.
+
 ## 0.1.2
 
 - Point installation examples and the installer smoke test at the verified
