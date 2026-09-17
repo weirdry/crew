@@ -240,6 +240,6 @@ explain why a report has not yet appeared; it does not make the phase complete.
 
 Keep actual relay histories, summaries, drafts, and authority state local.
 Only synthetic examples and fixtures belong in Git or public issue/PR evidence.
-The [test walkthrough](../../../tests/relay-walkthrough.md) demonstrates the
-file protocol; it does not establish fresh-model comprehension, summary
+The [test walkthrough](https://github.com/weirdry/crew/blob/v0.1.2/tests/relay-walkthrough.md)
+demonstrates the file protocol; it does not establish fresh-model comprehension, summary
 faithfulness on real work, or live Herdr delivery.

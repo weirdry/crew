@@ -13,6 +13,7 @@ import shutil
 import subprocess
 import tarfile
 import tempfile
+import textwrap
 import unittest
 from unittest import mock
 import urllib.request
@@ -361,6 +362,82 @@ class Releases(unittest.TestCase):
             result = subprocess.run(args, cwd=self.work, capture_output=True, text=True, umask=0o077)
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
             self.assertEqual([r['status'] for r in json.loads(result.stdout)['results']], ['current', 'current'])
+
+    def documented_shell(self, section):
+        skill = (self.payload / 'skill/SKILL.md').read_text()
+        block = skill.split(section, 1)[1].split('```bash\n', 1)[1].split('```', 1)[0]
+        return textwrap.dedent(block)
+
+    def test_documented_manual_exclusion_preserves_existing_rules(self):
+        initialization = self.documented_shell('To perform the same steps by hand,')
+        # Exercise the literal exclusion fragment; state-root validation and
+        # run creation are outside this check and use no real authority state.
+        command = 'exclude_file=' + initialization.split('exclude_file=', 1)[1].split(
+            'if [ -e "$state/.current" ]; then', 1)[0]
+        for index, previous in enumerate((b'', b'xcrew/\n', b'build/', b'.crew/\n')):
+            with self.subTest(previous=previous):
+                workspace = self.work / f'exclude-{index}'
+                subprocess.run(['git', 'init', '-q', str(workspace)], check=True)
+                exclude = workspace / '.git/info/exclude'
+                exclude.write_bytes(previous)
+                (workspace / '.crew').mkdir()
+                (workspace / '.crew/task.md').write_text('Synthetic task\n')
+                result = subprocess.run(['sh', '-c', command], cwd=workspace,
+                                        capture_output=True, text=True)
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                ignored = subprocess.run(['git', 'check-ignore', '-q', '.crew/task.md'], cwd=workspace)
+                self.assertEqual(ignored.returncode, 0)
+                written = exclude.read_bytes()
+                self.assertTrue(written.startswith(previous))
+                self.assertEqual(written.splitlines().count(b'.crew/'), 1)
+                subprocess.run(['sh', '-c', command], cwd=workspace, check=True)
+                self.assertEqual(exclude.read_bytes(), written)
+
+    def test_documented_manual_finishing_preserves_pointer_on_audit_failure(self):
+        command = self.documented_shell('- Without the finishing helper,')
+        for audit_kind in ('absent', 'matching', 'conflicting', 'directory', 'no-approvals'):
+            with self.subTest(audit=audit_kind):
+                workspace = self.work / audit_kind
+                run = workspace / '.crew/synthetic'
+                run.mkdir(parents=True)
+                state = self.work / f'{audit_kind}-authority'
+                (state / 'synthetic').mkdir(parents=True)
+                pointer = state / '.current'
+                pointer.write_bytes(b'synthetic\n')
+                source = state / 'synthetic/approvals.jsonl'
+                original = b'{"synthetic": "approval record"}\n'
+                if audit_kind != 'no-approvals':
+                    source.write_bytes(original)
+                audit = run / 'approvals.audit.jsonl'
+                if audit_kind == 'matching':
+                    audit.write_bytes(original)
+                elif audit_kind == 'conflicting':
+                    audit.write_bytes(b'Synthetic conflicting audit\n')
+                elif audit_kind == 'directory':
+                    audit.mkdir()
+                result = subprocess.run(['sh', '-c', command], cwd=workspace,
+                                        env=os.environ | {'state': str(state), 'run_id': 'synthetic'},
+                                        capture_output=True, text=True)
+                if audit_kind in ('conflicting', 'directory'):
+                    self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
+                    self.assertEqual(pointer.read_bytes(), b'synthetic\n')
+                    self.assertIn('approval audit already exists', result.stderr)
+                    if audit_kind == 'conflicting':
+                        self.assertEqual(audit.read_bytes(), b'Synthetic conflicting audit\n')
+                    else:
+                        self.assertTrue(audit.is_dir())
+                        self.assertEqual(list(audit.iterdir()), [])
+                else:
+                    self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                    self.assertFalse(pointer.exists())
+                    if audit_kind == 'no-approvals':
+                        self.assertFalse(audit.exists())
+                    else:
+                        self.assertEqual(audit.read_bytes(), original)
+                if audit_kind != 'no-approvals':
+                    self.assertEqual(source.read_bytes(), original)
+                else:
+                    self.assertFalse(source.exists())
 
     def test_duplicate_legacy_custom_and_workspace_roots(self):
         roots = [self.home / '.codex/skills', self.work / 'custom', self.work / '.agents/skills']

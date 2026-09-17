@@ -117,6 +117,13 @@ root-alias regression checks that default, selected and extra paths to the same
 directory remain current while separate development symlinks still conflict.
 Other cases preserve refusal when a resolved parent becomes a symlink, and run
 the documented tar extraction and packaged installer under `umask 077`. A
+pair of tests executes shell examples extracted from the packaged `SKILL.md`:
+the Git-exclusion fragment must preserve existing rules, ignore `.crew/` and
+remain unchanged on repeat; manual Finishing must preserve the active pointer
+and approval bytes when the audit conflicts or is a directory. Successful
+Finishing covers a new audit, a matching audit and no approvals. These use
+synthetic files without live authority state; the exclusion fragment does not
+exercise state-root validation or the rest of manual initialization. A
 stateful fake GitHub service exercises tag/draft/asset publication, retries after
 an accepted upload with a lost response, immutable publication, docs-only skips,
 version reuse refusal, credential-safe redirects and separate consumer evidence.
