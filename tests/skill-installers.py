@@ -13,7 +13,7 @@ import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
 PACKAGE = "skills@1.6.0"
-TAG = "v0.1.1"  # An actually published release, not the candidate VERSION.
+TAG = "v0.1.2"  # An actually published release, not the candidate VERSION.
 TREE_LOOKUP_ARGS = ["rev-parse", "--verify", "--end-of-options", "HEAD:skills/crew"]
 
 

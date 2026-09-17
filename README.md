@@ -28,11 +28,11 @@ for that. The skill refuses the same-kind case on purpose.
 For a new personal installation in Codex and Claude Code:
 
 ```sh
-npx skills@1.6.0 add 'weirdry/crew#v0.1.1' -g -a codex claude-code
+npx skills@1.6.0 add 'weirdry/crew#v0.1.2' -g -a codex claude-code
 ```
 
 This uses the existing [Skills CLI](https://github.com/vercel-labs/skills) to
-fetch the published `v0.1.1` tag and install the complete skill. No manual archive
+fetch the published `v0.1.2` tag and install the complete skill. No manual archive
 download is needed. Installation needs Node.js 22.20+ with npm and Git; Crew's
 helpers need Python 3.11+ on macOS or Linux. The npm package is the installer,
 not a Crew package.
