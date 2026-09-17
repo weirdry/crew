@@ -144,6 +144,13 @@ update and re-add behavior. It deliberately modifies only a synthetic installed
 copy to demonstrate that the third-party tool does not offer managed drift
 protection. The test never starts agents or touches normal installations/state.
 
+Before the unchanged-update scenario, the lock's source hash must match the
+published Git tree SHA. A fallback content hash from an unavailable GitHub tree
+API causes an explicit prerequisite failure before any local edit or update;
+rerun when the API is available. The test does not add credentials or silently
+skip this case. Same-tag updates can replace local edits when the hash source
+changes, as described in the installation evidence.
+
 The update validator rejects source-check failures even when the CLI exits 0 and
 also prints "up to date". A regression scenario runs the real pinned CLI with
 HTTP fetch and Git clone deliberately failing, verifies both failure paths were

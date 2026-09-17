@@ -62,6 +62,7 @@ def inventory(directory):
 def main():
     expected = expected_files()
     source = run(["git", "rev-parse", TAG + "^{commit}"]).strip()
+    tree_hash = run(["git", "rev-parse", TAG + ":skills/crew"]).strip()
     node = Path(run(["node", "-p", "process.execPath"]).strip())
     with tempfile.TemporaryDirectory(prefix="crew-skill-installer-") as temporary:
         work = Path(temporary).resolve()
@@ -97,6 +98,13 @@ def main():
             entry = json.loads(lock_path.read_text())["skills"]["crew"]
             assert entry["source"] == "weirdry/crew" and entry["ref"] == TAG
             assert entry["skillPath"] == "skills/crew/SKILL.md"
+            folder_hash = entry.get("skillFolderHash", "")
+            if len(folder_hash) == 64 and all(c in "0123456789abcdef" for c in folder_hash):
+                raise RuntimeError(
+                    "GitHub tree API unavailable during add: Skills CLI recorded a fallback content hash. "
+                    "The pinned-update scenario requires an API tree hash; rerun this isolated smoke "
+                    "test when the API is available. Do not pass credentials to the third-party CLI.")
+            assert folder_hash == tree_hash, "Skills CLI source hash differs from the published Git tree"
 
         check_ref()
         assert "crew" in cli("list", "-g")

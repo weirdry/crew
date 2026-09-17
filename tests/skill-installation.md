@@ -40,7 +40,8 @@ references and templates, were compared with that published source.
 | Installed completion helper | Completed report accepted (0), blocked report rejected (1), both layouts |
 | Installed relay entry point | Usage exit 2 in both layouts; no live run or agent started |
 | Source record | Global `.agents/.skill-lock.json` retains `ref: v0.1.0` and `skills/crew/SKILL.md` |
-| Pinned `update crew -g` | Keeps the selected ref; reports up to date even with a synthetic local edit |
+| Pinned `update crew -g`, API tree hash recorded at add | Keeps the selected ref; reports up to date even with a synthetic local edit |
+| HTTP unavailable during add, available during update | A fallback content hash is compared with a Git tree SHA; update reinstalls the unchanged tag and replaces a synthetic local edit |
 | Failed HTTP lookup and Git fallback | CLI exits 0 with both `Failed to check` and `up to date`; the update validator rejects it and preserves the files/source record |
 | Re-add same tag | Restores source bytes by replacing that local edit; not a preservation/no-op guarantee |
 | Published managed installer checks a CLI installation | Both hosts report `conflicting`; installed files preserved |
@@ -50,6 +51,14 @@ that rejects HTTP fetch and a temporary Git wrapper that rejects clone. It check
 that both were invoked, then requires the same validator used by the healthy
 update check to reject the resulting output. Exit status and a success phrase
 alone cannot establish that a source check completed in Skills CLI 1.6.0.
+
+The unchanged-update scenario requires the lock's source hash to equal the
+published skill's Git tree SHA. If add falls back to a 64-hex content hash, the
+smoke test stops before editing the installed skill or running update and names
+the unavailable API prerequisite. Retry when the API is available; do not pass
+credentials to the third-party CLI. Pinning the tag alone does not make update
+read-only or protect local edits. The network smoke test uses `-y`, which selects
+the default Symlink method; it does not establish the full interactive flow.
 
 ## Codex skill-installer experiment
 

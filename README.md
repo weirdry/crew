@@ -37,6 +37,8 @@ download is needed. Installation needs Node.js 22.20+ with npm and Git; Crew's
 helpers need Python 3.11+ on macOS or Linux. The npm package is the installer,
 not a Crew package.
 
+When prompted for the installation method, accept **Symlink (Recommended)**.
+
 Already have Crew installed? Read [existing installations](INSTALL.md#existing-installations)
 first: Skills CLI can overwrite files and does not provide Crew's managed
 installer's drift protection. End affected Crew work before changing an
