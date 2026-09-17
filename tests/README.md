@@ -135,7 +135,7 @@ Herdr permission handling or fresh-agent comprehension.
 ## Existing skill installer coverage
 
 `python3 -B tests/skill-installers.py` is a separate network smoke test requiring
-Node.js 22.20+, npm, Git, Python 3.11+ and the fetched `v0.1.0` tag. It invokes
+Node.js 22.20+, npm, Git, Python 3.11+ and the fetched `v0.1.1` tag. It invokes
 the documented `skills@1.6.0` npm package in a disposable home with isolated
 host configuration, npm cache and temporary files, and no inherited credentials.
 Live installation and re-add compare every installed file and executable bit

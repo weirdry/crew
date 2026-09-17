@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.2
+
+- Point installation examples and the installer smoke test at the verified
+  published v0.1.1 release. Collaboration helpers and installers are unchanged.
+
 ## 0.1.1
 
 - Make the existing Skills CLI the primary installation path, using an explicit
