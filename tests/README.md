@@ -159,6 +159,11 @@ edit preservation with a stable tree hash (API and Git paths), preservation with
 a stable content hash, and same-tag replacement when API access returns after
 a fallback-hash installation. It never seeds or rewrites the CLI's lock file.
 Each controlled request is checked for the exact tag URL and expected status.
+The tree-hash Git fallback also uses a pass-through Git wrapper that records
+arguments and exit codes. Both clone and the exact `HEAD:skills/crew` tree lookup
+must run and succeed. A paired scenario forces only that lookup to exit 128;
+the CLI still reports up to date, but the Git trace validator must reject it
+while the local edit and source record remain intact.
 
 The update validator rejects source-check failures even when the CLI exits 0 and
 also prints "up to date". A regression scenario runs the real pinned CLI with

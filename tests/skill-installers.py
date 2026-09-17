@@ -5,6 +5,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -13,6 +14,7 @@ import tempfile
 ROOT = Path(__file__).resolve().parents[1]
 PACKAGE = "skills@1.6.0"
 TAG = "v0.1.0"  # An actually published release, not the candidate VERSION.
+TREE_LOOKUP_ARGS = ["rev-parse", "--verify", "--end-of-options", "HEAD:skills/crew"]
 
 
 def run(argv, *, cwd=ROOT, env=None, expected=0):
@@ -30,6 +32,17 @@ def require_current_update(output):
         raise RuntimeError("Skills CLI update failed:\n" + output)
     if "all global skills are up to date" not in lower:
         raise RuntimeError("Skills CLI did not confirm the pinned source:\n" + output)
+
+
+def require_git_tree_check(events):
+    clones = [event for event in events if "clone" in event["argv"]]
+    lookups = [event for event in events
+               if len(event["argv"]) == 6 and event["argv"][0] == "-C"
+               and event["argv"][2:] == TREE_LOOKUP_ARGS]
+    if not clones or any(event["exit"] != 0 for event in clones):
+        raise RuntimeError("Git clone did not complete successfully")
+    if not lookups or any(event["exit"] != 0 for event in lookups):
+        raise RuntimeError("Git tree lookup did not complete successfully")
 
 
 def expected_files():
@@ -171,9 +184,62 @@ def main():
         require_current_update(cli("tree-update", "update", "crew", "-g", "-y", mode="tree"))
         assert inventory(codex) == edited
         check_ref(tree_hash)
-        require_current_update(cli("tree-git-update", "update", "crew", "-g", "-y", mode="unavailable"))
+
+        # Observe the real Git calls only for this fallback and its regression.
+        # Skills CLI can report "up to date" after rev-parse fails silently.
+        real_git = shutil.which("git", path=env["PATH"])
+        assert real_git, "Git is required for the fallback check"
+        traced_bin = work / "traced-bin"
+        traced_bin.mkdir()
+        traced_git = traced_bin / "git"
+        traced_git.write_text(
+            '#!/usr/bin/env python3\n'
+            'import json, os, subprocess, sys\n'
+            'argv = sys.argv[1:]\n'
+            'lookup = len(argv) == 6 and argv[0] == "-C" and argv[2:] == '
+            + repr(TREE_LOOKUP_ARGS) + '\n'
+            'if lookup and os.environ.get("CREW_TEST_FAIL_TREE_LOOKUP") == "1":\n'
+            '    code = 128\n'
+            'else:\n'
+            '    code = subprocess.run([os.environ["CREW_TEST_REAL_GIT"], *argv]).returncode\n'
+            'with open(os.environ["CREW_TEST_GIT_TRACE"], "a") as log:\n'
+            '    log.write(json.dumps({"argv": argv, "exit": code}) + "\\n")\n'
+            'sys.exit(code)\n')
+        traced_git.chmod(0o755)
+
+        def traced_update(label, *, fail_lookup=False):
+            trace = work / (label + "-git.jsonl")
+            assert not trace.exists()
+            try:
+                output = cli(label, "update", "crew", "-g", "-y", mode="unavailable", extra_env={
+                    "PATH": str(traced_bin) + os.pathsep + env["PATH"],
+                    "CREW_TEST_REAL_GIT": real_git,
+                    "CREW_TEST_GIT_TRACE": str(trace),
+                    "CREW_TEST_FAIL_TREE_LOOKUP": "1" if fail_lookup else "0",
+                })
+            finally:
+                events = [json.loads(line) for line in trace.read_text().splitlines()] if trace.exists() else []
+                print(json.dumps({"step": label, "git_calls": events}), flush=True)
+            return output, events
+
+        output, git_events = traced_update("tree-git-update")
+        require_current_update(output)
+        require_git_tree_check(git_events)
         assert inventory(codex) == edited
         check_ref(tree_hash)
+
+        before_lock = lock_path.read_bytes()
+        output, git_events = traced_update("failed-tree-lookup", fail_lookup=True)
+        require_current_update(output)  # Reproduce the upstream misleading success.
+        assert any(event["argv"][2:] == TREE_LOOKUP_ARGS and event["exit"] == 128
+                   for event in git_events)
+        try:
+            require_git_tree_check(git_events)
+        except RuntimeError as error:
+            assert str(error) == "Git tree lookup did not complete successfully"
+        else:
+            raise AssertionError("The Git validator accepted a failed tree lookup")
+        assert inventory(codex) == edited and lock_path.read_bytes() == before_lock
 
         cli("fallback-add", *add, mode="unavailable")
         assert inventory(codex) == expected
@@ -221,6 +287,7 @@ def main():
                           "files_per_layout": len(expected), "layouts": ["codex", "claude"],
                           "live_installation_and_helpers": "passed", "live_readd": "passed",
                           "controlled_update_scenarios": "passed",
+                          "failed_tree_lookup_rejected": "passed",
                           "failed_source_check_rejected": "passed"}))
 
 

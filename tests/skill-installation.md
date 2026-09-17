@@ -1,6 +1,6 @@
 # Existing skill installers: decisions and evidence
 
-Issue: [#8](https://github.com/weirdry/crew/issues/8). Observed 2026-09-17.
+Issue: [#8](https://github.com/weirdry/crew/issues/8). Observed 2026-09-17 to 2026-09-18.
 
 ## Decision
 
@@ -41,6 +41,7 @@ references and templates, were compared with that published source.
 | Installed relay entry point | Usage exit 2 in both layouts; no live run or agent started |
 | Source record | Global `.agents/.skill-lock.json` retains `ref: v0.1.0` and `skills/crew/SKILL.md` |
 | Pinned `update crew -g`, API tree hash recorded at add | Keeps the selected ref; reports up to date even with a synthetic local edit |
+| Tree API unavailable, Git tree lookup fails after clone | CLI still reports up to date; the Git trace validator rejects the failed lookup |
 | HTTP unavailable during add, available during update | A fallback content hash is compared with a Git tree SHA; update reinstalls the unchanged tag and replaces a synthetic local edit |
 | Failed HTTP lookup and Git fallback | CLI exits 0 with both `Failed to check` and `up to date`; the update validator rejects it and preserves the files/source record |
 | Re-add same tag | Restores source bytes by replacing that local edit; not a preservation/no-op guarantee |
@@ -75,6 +76,15 @@ tree-hash updates through both API and Git, stable fallback-hash updates through
 Git, and replacement of a local edit when the API returns after a fallback-hash
 installation. The CLI creates all source records itself; the test does not
 rewrite its lock or silently omit cases based on API availability.
+
+The tree-hash Git fallback records each Git invocation and exit code with a
+pass-through wrapper scoped to that scenario and its regression. It requires
+successful clone and `rev-parse --verify --end-of-options HEAD:skills/crew`
+calls. The regression lets clone succeed but forces that exact lookup to exit
+128: Skills CLI 1.6.0 treats the missing hash as unchanged and still reports up
+to date. The trace validator must reject this result; installed edits and the
+source record must remain unchanged. CLI success text alone does not prove that
+the Git-side hash comparison completed.
 
 These controlled results prove behavior for the stated responses, not current
 API availability. Live installation/re-add and controlled update evidence are
