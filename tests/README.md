@@ -144,6 +144,12 @@ update and re-add behavior. It deliberately modifies only a synthetic installed
 copy to demonstrate that the third-party tool does not offer managed drift
 protection. The test never starts agents or touches normal installations/state.
 
+The update validator rejects source-check failures even when the CLI exits 0 and
+also prints "up to date". A regression scenario runs the real pinned CLI with
+HTTP fetch and Git clone deliberately failing, verifies both failure paths were
+exercised, and requires the validator to reject that output. The fixture reuses
+the temporary npm cache and leaves installed files and the source record intact.
+
 The Python 3.11 Linux/macOS CI jobs run it after candidate validation. It remains
 outside the offline `tests/ci.sh` suite and the Release workflow. See the
 [installation evidence and decisions](skill-installation.md) for the separate

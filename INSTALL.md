@@ -52,6 +52,9 @@ Crew sessions, then repeat the `add` command with the chosen published `#vX.Y.Z`
 Re-adding can replace local files; it is not the archive installer's repeat no-op
 or modified-content refusal. `skills update` can report "up to date" despite
 local edits because it checks the source version, not all installed bytes.
+Skills CLI 1.6.0 can also print that message and exit successfully after a source
+lookup failure. Treat `Failed to check` as an unsuccessful check even if an
+"up to date" line follows; resolve the reported failure before retrying.
 
 ### Codex-only alternative
 

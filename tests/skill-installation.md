@@ -41,8 +41,15 @@ references and templates, were compared with that published source.
 | Installed relay entry point | Usage exit 2 in both layouts; no live run or agent started |
 | Source record | Global `.agents/.skill-lock.json` retains `ref: v0.1.0` and `skills/crew/SKILL.md` |
 | Pinned `update crew -g` | Keeps the selected ref; reports up to date even with a synthetic local edit |
+| Failed HTTP lookup and Git fallback | CLI exits 0 with both `Failed to check` and `up to date`; the update validator rejects it and preserves the files/source record |
 | Re-add same tag | Restores source bytes by replacing that local edit; not a preservation/no-op guarantee |
 | Published managed installer checks a CLI installation | Both hosts report `conflicting`; installed files preserved |
+
+The failure regression uses the real pinned CLI with a temporary Node preload
+that rejects HTTP fetch and a temporary Git wrapper that rejects clone. It checks
+that both were invoked, then requires the same validator used by the healthy
+update check to reject the resulting output. Exit status and a success phrase
+alone cannot establish that a source check completed in Skills CLI 1.6.0.
 
 ## Codex skill-installer experiment
 
