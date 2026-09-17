@@ -46,19 +46,42 @@ references and templates, were compared with that published source.
 | Re-add same tag | Restores source bytes by replacing that local edit; not a preservation/no-op guarantee |
 | Published managed installer checks a CLI installation | Both hosts report `conflicting`; installed files preserved |
 
-The failure regression uses the real pinned CLI with a temporary Node preload
-that rejects HTTP fetch and a temporary Git wrapper that rejects clone. It checks
-that both were invoked, then requires the same validator used by the healthy
-update check to reject the resulting output. Exit status and a success phrase
-alone cannot establish that a source check completed in Skills CLI 1.6.0.
+The failure regression uses the real pinned CLI with a Node preload returning
+HTTP 503 for the tree API and a temporary Git wrapper that rejects clone. It
+checks that both were invoked, then requires the same validator used by the
+healthy update check to reject the resulting output. Exit status and a success
+phrase alone cannot establish that a source check completed in Skills CLI 1.6.0.
 
-The unchanged-update scenario requires the lock's source hash to equal the
-published skill's Git tree SHA. If add falls back to a 64-hex content hash, the
-smoke test stops before editing the installed skill or running update and names
-the unavailable API prerequisite. Retry when the API is available; do not pass
-credentials to the third-party CLI. Pinning the tag alone does not make update
-read-only or protect local edits. The network smoke test uses `-y`, which selects
-the default Symlink method; it does not establish the full interactive flow.
+### Live installation and controlled updates
+
+On 2026-09-17, [CI run 35209988574](https://github.com/weirdry/crew/actions/runs/35209988574)
+passed file/mode verification on macOS but stopped at the old tree-hash-only
+guard in both attempts. The CLI had recorded a fallback content hash. Those logs
+did not retain the API response, so they cannot establish whether the underlying
+cause was a rate limit, another HTTP failure or a transport error.
+
+The smoke test now accepts either source hash only when it matches the selected
+published Git objects: the skill's tree SHA or the CLI 1.6.0 content hash over
+relative paths and file bytes in JavaScript `localeCompare` order. It still
+compares the full installed inventory and executes installed helpers. Live add
+and re-add use unmodified HTTP responses. A pass-through observer logs tree HTTP
+status, rate-limit/retry headers, or exception name and cause code without
+request headers or response bodies.
+
+Update scenarios control only the tree response, using the published Git tree
+as the success fixture and HTTP 503 for unavailability. npm/Git installation
+still uses the actual pinned CLI and release. Separate scenarios verify stable
+tree-hash updates through both API and Git, stable fallback-hash updates through
+Git, and replacement of a local edit when the API returns after a fallback-hash
+installation. The CLI creates all source records itself; the test does not
+rewrite its lock or silently omit cases based on API availability.
+
+These controlled results prove behavior for the stated responses, not current
+API availability. Live installation/re-add and controlled update evidence are
+reported separately. Pinning the tag alone does not make update read-only or
+protect local edits. The smoke test uses `-y`, which selects the default Symlink
+method; it does not establish the full interactive flow. No credentials are
+passed to the third-party CLI.
 
 ## Codex skill-installer experiment
 
