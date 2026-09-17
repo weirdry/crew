@@ -22,6 +22,13 @@ Do not turn each development commit into a release version. Changes accumulated
 before a version is published evolve together in place. Existing installed copies
 and retained state still require concrete compatibility assessment.
 
+The same published tag is also an installation source for the existing Skills
+CLI. [INSTALL.md](INSTALL.md) makes that the primary user path; the managed
+archive remains available with its original ownership and content-checking
+contract. Skill installers do not consume the archive's marker or checksum.
+Preserve published tags/assets and the managed installer when improving user
+guidance; do not adopt existing installations implicitly.
+
 The allowlist in `tools/release/package.py` includes:
 
 - `skills/crew/SKILL.md`, supported helper scripts, references and templates,
@@ -109,6 +116,10 @@ setting, configure branch protection, publish a release, or update a workstation
 It tests Python 3.11 on Linux/macOS and Python 3.14 on Linux, with read-only
 repository permissions. It runs the existing helper suite, focused release tests,
 version policy, candidate packaging and isolated consumption.
+The Python 3.11 Linux/macOS jobs also exercise the documented Skills CLI against
+the published tag selected in `tests/skill-installers.py`. That check proves the
+existing installation path; it does not publish or validate a future unpublished
+tag, and does not replace candidate or public-archive consumption.
 
 [Release](.github/workflows/release.yml) runs only on a push to `main`:
 

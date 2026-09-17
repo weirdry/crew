@@ -25,17 +25,26 @@ for that. The skill refuses the same-kind case on purpose.
 
 ## Install
 
-Use an exact [GitHub Release](https://github.com/weirdry/crew/releases) and follow
-[INSTALL.md](INSTALL.md) for verified download, managed installation, updates and
-read-only checks. One archive contains the skill, helpers and installer. Python
-3.11+ on macOS or Linux is required; nothing is published to npm. The first
-governed version is 0.1.0, available only after its release has actually published.
+For a new personal installation in Codex and Claude Code:
 
-Default personal destinations are `~/.agents/skills/crew` for Codex and
-`~/.claude/skills/crew` for Claude Code. Existing copies, development links and
-duplicate roots are preserved and reported as conflicts; there is no automatic
-adoption or force overwrite. Finish affected Crew work before an update and use
-a fresh agent session afterwards.
+```sh
+npx skills@1.6.0 add 'weirdry/crew#v0.1.0' -g -a codex claude-code
+```
+
+This uses the existing [Skills CLI](https://github.com/vercel-labs/skills) to
+fetch the published `v0.1.0` tag and install the complete skill. No manual archive
+download is needed. Installation needs Node.js 22.20+ with npm and Git; Crew's
+helpers need Python 3.11+ on macOS or Linux. The npm package is the installer,
+not a Crew package.
+
+Already have Crew installed? Read [existing installations](INSTALL.md#existing-installations)
+first: Skills CLI can overwrite files and does not provide Crew's managed
+installer's drift protection. End affected Crew work before changing an
+installation and start a fresh agent session afterwards.
+
+[INSTALL.md](INSTALL.md) covers version selection, updates, the Codex installer
+alternative and the existing managed archive installer. The command deliberately
+pins a published release; it does not track the latest tag or `main`.
 
 ### Development installation
 
@@ -50,9 +59,10 @@ ln -s /absolute/development-checkout/skills/crew ~/.agents/skills/crew
 Use `~/.claude/skills/crew` for Claude. Edits, branch switches, pulls and rebases
 change what linked sessions execute immediately, even before a commit. Develop
 and test in an isolated checkout when another session uses the linked checkout.
-The managed installer refuses these symlinks. Third-party skill installers also
-remain outside Crew's managed ownership contract; their copies are treated as
-unmanaged until deliberately preserved and replaced by the operator.
+The managed archive installer refuses these symlinks. Skills CLI, Codex's
+installer and the archive installer own separate installation layouts and
+metadata; follow the [installation ownership rules](INSTALL.md#existing-installations)
+when changing methods.
 
 Then, inside a Herdr pane:
 

@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.1.1
+
+- Make the existing Skills CLI the primary installation path, using an explicit
+  published Crew tag without manual archive download or a new bootstrap tool.
+- Explain source-pinned updates, installation ownership and the Codex installer's
+  Git-method requirement. Preserve the managed archive installer and its checks.
+- Add isolated installation coverage for the documented third-party tool path.
+
+Collaboration helpers and the managed installer are unchanged. Live Herdr
+acceptance remains unverified.
+
 ## 0.1.0
 
 Initial governed release (early development, not a stable 1.0 contract).

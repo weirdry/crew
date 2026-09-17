@@ -94,8 +94,12 @@ class Releases(unittest.TestCase):
         cls.base = Path(cls.storage.name).resolve()
         cls.repository = cls.base / 'source'
         cls.repository.mkdir()
-        for path in ('VERSION', 'LICENSE', 'INSTALL.md', 'CHANGELOG.md'):
+        for path in ('LICENSE', 'INSTALL.md'):
             shutil.copy2(ROOT / path, cls.repository / path)
+        # Synthetic update scenarios have fixed versions, independent of the
+        # repository's next release. Actual candidate CI checks real metadata.
+        (cls.repository / 'VERSION').write_text('0.1.0\n')
+        (cls.repository / 'CHANGELOG.md').write_text('# Changelog\n\n## 0.1.0\n\nSynthetic baseline.\n')
         shutil.copytree(ROOT / 'skills', cls.repository / 'skills')
         shutil.copytree(ROOT / 'tools', cls.repository / 'tools', ignore=shutil.ignore_patterns('__pycache__'))
         subprocess.run(['git', 'init', '-q', str(cls.repository)], check=True)

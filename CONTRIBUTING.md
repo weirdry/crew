@@ -286,11 +286,13 @@ installation was updated.
 
 ## Release boundaries and installed state
 
-Crew is distributed as a versioned GitHub Release archive built from this Git
-repository; nothing is published to npm. [RELEASING.md](RELEASING.md) owns the
-version, artifact, publication and retry rules. [INSTALL.md](INSTALL.md) owns
-managed installation and read-only checks. Existing copies and symlink
-installations are real consumers. A symlink loads its target files immediately, so an
+Crew can be installed from a published Git tag with an existing skill installer,
+or from its versioned GitHub Release archive. No Crew package is published to npm;
+the recommended `npx` command uses the separate Skills CLI package.
+[RELEASING.md](RELEASING.md) owns version, artifact, publication and retry rules.
+[INSTALL.md](INSTALL.md) owns installation, update and ownership rules for each
+method. Existing copies and symlink installations are real consumers. A symlink
+loads its target files immediately, so an
 edit, branch switch, pull, or rebase can affect a running session before a commit.
 Use an isolated development checkout or worktree when installed sessions may be
 using another checkout. A link to `dev` is an explicit local development choice,

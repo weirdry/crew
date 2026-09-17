@@ -131,3 +131,20 @@ published artifact anonymously on Linux and macOS. See [RELEASING.md](../RELEASI
 for identity, authority, retries and evidence retention. Candidate tests do not
 prove hosted publication; public consumption does not prove live host discovery,
 Herdr permission handling or fresh-agent comprehension.
+
+## Existing skill installer coverage
+
+`python3 -B tests/skill-installers.py` is a separate network smoke test requiring
+Node.js 22.20+, npm, Git, Python 3.11+ and the fetched `v0.1.0` tag. It invokes
+the documented `skills@1.6.0` npm package in a disposable home with isolated
+host configuration, npm cache and temporary files, and no inherited credentials.
+It compares every installed skill file and executable bit with the published
+Git tree, executes completion/relay helpers in both layouts, and checks pinned
+update and re-add behavior. It deliberately modifies only a synthetic installed
+copy to demonstrate that the third-party tool does not offer managed drift
+protection. The test never starts agents or touches normal installations/state.
+
+The Python 3.11 Linux/macOS CI jobs run it after candidate validation. It remains
+outside the offline `tests/ci.sh` suite and the Release workflow. See the
+[installation evidence and decisions](skill-installation.md) for the separate
+Codex installer experiment and the boundaries of these checks.
