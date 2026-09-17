@@ -181,8 +181,8 @@ second model's opinion worth its cost.
 
 ## Status
 
-Early, and used for real: every commit since the license has been produced by a crew run, and
-the skill has run against a working repository outside its own. The loop, the artifact protocol,
+Early, and used for real: Crew has been used to develop this repository and has run against
+a working repository outside its own. The loop, the artifact protocol,
 the escalation boundary, and the two lifetimes — a bounded run, a partner that outlives it —
 are settled.
 
