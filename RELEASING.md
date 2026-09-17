@@ -166,8 +166,11 @@ concrete tag examples are fixed, valid published selections and may be older
 than the README's current recommendation. Do not refresh those packaged examples
 solely because another tag was published. A deliberate change to the packaged
 installation contract still participates in a reviewed release with a newer
-version, just like any other release-input change. Keep dated historical evidence
-and published tags/assets unchanged.
+version, just like any other release-input change. When another release-input
+change requires the next release, refresh these examples to the latest published
+tag with completed public-download verification as part of the same
+version/changelog update. Keep dated historical evidence and published tags/assets
+unchanged.
 
 When the repository-only refresh is later promoted to `main`, the existing
 publisher verifies the original publication and reports `publication: unchanged`.
