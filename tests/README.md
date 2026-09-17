@@ -120,6 +120,11 @@ the documented tar extraction and packaged installer under `umask 077`. A
 stateful fake GitHub service exercises tag/draft/asset publication, retries after
 an accepted upload with a lost response, immutable publication, docs-only skips,
 version reuse refusal, credential-safe redirects and separate consumer evidence.
+The post-publication tag-refresh regression checks that README/test changes keep
+the version and release inputs unchanged, and preserve the original publication's
+source, digest, assets and notes without remote writes. A complementary case
+still refuses unversioned changes to the packaged INSTALL.md in both version
+policy and publication checks.
 An empty draft `starter` asset stays untouched until simulated operator recovery;
 published and other conflicting assets never receive that recovery advice.
 An actual candidate is installed and its packaged helper entry points executed.
