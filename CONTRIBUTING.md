@@ -334,10 +334,15 @@ user's authorized scope; ad hoc state cleanup requires explicit authorization.
 The [skill entry](skills/crew/SKILL.md) owns the agent workflow. The
 [helper scripts](skills/crew/scripts/) and [tests](tests/README.md) own executable
 behavior and repeatable checks. The [README](README.md) owns the user-facing
-overview and links to the [installation contract](INSTALL.md) and
+overview and current verified installation-tag selection, and links to the
+versioned [installation contract](INSTALL.md) and
 [release process](RELEASING.md). This document owns contribution and issue-management
 procedures; the local issue and PR templates own their respective body formats.
 Update the affected owners together when behavior changes.
+
+Follow [post-publication maintenance](RELEASING.md#after-publication) for a new
+installation recommendation. Refreshing repository-only examples and tests does
+not change the packaged installation contract or prepare the next version.
 
 ### Agent entry documents
 

@@ -555,20 +555,55 @@ class Releases(unittest.TestCase):
         self.assertEqual(self.api.calls, [])
         self.assertEqual(self.api.bytes[99], b'')
 
-    def test_docs_only_publication_preserves_original_identity(self):
+    def test_post_publication_tag_refresh_preserves_version_and_original_release(self):
         first = self.publish()
+        self.api.data['body'] += '\n\nSynthetic public-download verification: passed.\n'
+        remote = copy.deepcopy(self.api.__dict__)
         root = self.copied_source()
-        (root / 'README.md').write_text('docs only')
+        tag = 'v' + self.manifest['version']
+        (root / 'README.md').write_text(f"Install weirdry/crew#{tag}.\n")
+        (root / 'tests').mkdir()
+        (root / 'tests/skill-installers.py').write_text(f'TAG = "{tag}"\n')
+        (root / 'tests/README.md').write_text(f'Fetch {tag} before running the installer smoke test.\n')
         source = commit(root)
+        self.assertEqual(check_version.check(root, self.source), 'release version checked')
         output = self.work / 'out'
-        package.build(root, output)
-        before = len(self.api.calls)
+        manifest = package.build(root, output)
+        self.assertNotEqual(source, self.source)
+        self.assertEqual(manifest['version'], self.manifest['version'])
+        self.assertEqual(manifest['inputs_sha256'], self.manifest['inputs_sha256'])
+        self.assertEqual(manifest['files'], self.manifest['files'])
+        # The new candidate embeds a new source; it must not replace the release.
+        self.assertNotEqual(sha256((output / self.archive.name).read_bytes()), first['sha256'])
         result = self.publish(output, source)
         self.assertEqual(result['publication'], 'unchanged')
         self.assertEqual(result['source'], self.source)
         self.assertEqual(result['sha256'], first['sha256'])
+        self.assertEqual(result['verification'], 'not-requested')
         self.assertFalse(result['eligible'])
-        self.assertEqual(len(self.api.calls), before)
+        self.assertEqual(self.api.__dict__, remote)
+
+    def test_packaged_installation_changes_still_require_a_new_version(self):
+        self.publish()
+        remote = copy.deepcopy(self.api.__dict__)
+        root = self.copied_source()
+        guide = root / 'INSTALL.md'
+        guide.write_text(guide.read_text() + '\nUpdated installation instructions.\n')
+        source = commit(root)
+        with self.assertRaisesRegex(Invalid, 'newer VERSION'):
+            check_version.check(root, self.source)
+        output = self.work / 'out'
+        package.build(root, output)
+        with self.assertRaisesRegex(Invalid, 'without a new version'):
+            self.publish(output, source)
+        self.assertEqual(self.api.__dict__, remote)
+
+        (root / 'VERSION').write_text('0.1.1\n')
+        changelog = root / 'CHANGELOG.md'
+        changelog.write_text(changelog.read_text() + '\n## 0.1.1\n\nUpdate installation instructions.\n')
+        commit(root)
+        self.assertEqual(check_version.check(root, self.source), 'release version checked')
+        self.assertEqual(package.build(root, self.work / 'versioned')['version'], '0.1.1')
 
     def test_reused_version_with_changed_inputs_refused(self):
         self.publish()

@@ -154,13 +154,30 @@ completed release from an uploaded archive alone.
 
 ## After publication
 
-After publication and public consumption succeed, update the installation
-examples in README/INSTALL and `TAG` in `tests/skill-installers.py` together on
-`dev` to the newly verified published tag, then rerun the installer smoke test.
-Keep dated historical evidence and published tags/assets unchanged. Because
-`INSTALL.md` is a release input, include its update in the next planned version
-and changelog under the existing rules; this maintenance step does not require
-an immediate additional release.
+The README's installation command owns the current verified release selection.
+After publication and public consumption succeed, update that command, `TAG` in
+`tests/skill-installers.py`, and the test prerequisites in `tests/README.md`
+together on `dev`, then rerun the installer smoke test. These repository-only
+files are not release inputs. A routine tag refresh leaves `VERSION`,
+`CHANGELOG.md` and `INSTALL.md` unchanged; it does not prepare another release.
+
+`INSTALL.md` is the versioned installation contract shipped in the archive. Its
+concrete tag examples are fixed, valid published selections and may be older
+than the README's current recommendation. Do not refresh those packaged examples
+solely because another tag was published. A deliberate change to the packaged
+installation contract still participates in a reviewed release with a newer
+version, just like any other release-input change. Keep dated historical evidence
+and published tags/assets unchanged.
+
+When the repository-only refresh is later promoted to `main`, the existing
+publisher verifies the original publication and reports `publication: unchanged`.
+It preserves the original source, archive digest, assets and consumer evidence;
+it does not publish the later commit's candidate or rerun consumption for it.
+Prepare the next version and changelog only when intended release inputs change.
+If a routine tag refresh alone accidentally prepared an unpublished version,
+withdraw it in a follow-up commit by restoring that refresh's release-input
+changes to the published baseline. Preserve independent pending release work;
+published versions are never rewritten.
 
 ## Retry and correction rules
 

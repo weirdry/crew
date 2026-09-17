@@ -45,8 +45,10 @@ installer's drift protection. End affected Crew work before changing an
 installation and start a fresh agent session afterwards.
 
 [INSTALL.md](INSTALL.md) covers version selection, updates, the Codex installer
-alternative and the existing managed archive installer. The command deliberately
-pins a published release; it does not track the latest tag or `main`.
+alternative and the existing managed archive installer. Use the command above
+for the current recommended release; the fixed examples in INSTALL.md may select
+an older published tag. Each command deliberately pins a release and does not
+automatically track newer tags or `main`.
 
 ### Development installation
 
