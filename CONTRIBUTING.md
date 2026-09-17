@@ -158,8 +158,11 @@ See [tests/README.md](tests/README.md) for the fixture model and coverage limits
 
 Crew uses native shell and Python test entry points, with hosted CI on Linux and
 macOS. There is no root Just interface or repository-managed Git hook. Run
-`sh tests/ci.sh` for the complete CI checks (Python 3.11+ and `origin/main` are
-required). Report local results separately from hosted or live evidence.
+`sh tests/ci.sh` for the offline checks (Python 3.11+ and `origin/main` are
+required). [Hosted CI](.github/workflows/ci.yml) separately runs
+[candidate packaging and isolated consumption](RELEASING.md#candidate-and-published-artifacts)
+and the [network installer checks](tests/README.md#existing-skill-installer-coverage).
+Report each local check separately from hosted or live evidence.
 If repository-managed hooks are introduced, enable them as documented and do
 not bypass them with `git commit --no-verify`.
 

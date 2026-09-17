@@ -216,12 +216,18 @@ differs, preserve the conflict and investigate it. See GitHub's
 
 Implementation, hosted CI, `dev` integration, `main` promotion, publication,
 public-download consumption, normal installation and live operation are separate.
-[Issue #6](https://github.com/weirdry/crew/issues/6) stays open until the first
-actual governed release and public consumption have been verified and linked.
-Passing candidate tests or merging this implementation into `dev` is insufficient.
+Each release requires publication and public-download consumption evidence;
+passing candidate tests or integrating into `dev` is insufficient.
+
+The first governed release, [v0.1.0](https://github.com/weirdry/crew/releases/tag/v0.1.0),
+completed on 2026-09-17. Its
+[release workflow](https://github.com/weirdry/crew/actions/runs/35200530242)
+verified publication, native immutability and public-download consumption on
+Linux and macOS. [Issue #6](https://github.com/weirdry/crew/issues/6) closed with
+that evidence.
 
 Synthetic tests do not prove GitHub permissions, native immutability or public
-asset propagation. The first real release must establish those hosted outcomes.
+asset propagation. Each actual release must establish those hosted outcomes.
 Isolated consumer checks prove installation/content and representative helper
 execution; they do not prove actual host discovery, model comprehension, live
 Herdr delivery, permission dialogs or worker sandbox access to the lead's state.

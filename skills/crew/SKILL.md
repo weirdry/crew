@@ -680,11 +680,12 @@ Enforced rules:
   position. `worker-stop.sh` closes only the partner in `<state>/worker.json`, only after explicit
   user instruction, and refuses unless the caller is the recorded lead and the live name and kind
   still resolve to the recorded pane.
-- Helper changed under a running lead — with the symlinked install, a commit to the skill
-  repository replaces the helpers for every live session at once, including a run in progress in
-  another workspace whose lead still holds the previous `SKILL.md` in context. If a helper's
-  behaviour contradicts this document mid-run, check the skill repository's log before
-  diagnosing the run.
+- Helper changed under a running lead — a development symlink into a repository checkout
+  loads edits, pulls and branch switches immediately, even before a commit. A Skills CLI link
+  points to its shared installed copy, which can be replaced by an installer update or re-add.
+  In either case, a running lead may still hold the previous `SKILL.md` in context. If a helper's
+  behaviour contradicts this document mid-run, inspect the resolved skill directory and its
+  installed or source revision before diagnosing the run.
 - Discarded stderr — `herdr agent prompt ... --timeout` without `--wait` is a usage error, and
   with stderr sent to `/dev/null` it looks exactly like a dropped prompt. Never discard the
   stderr of a `herdr` call that moves the run; read the result before concluding anything.
