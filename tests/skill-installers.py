@@ -23,6 +23,15 @@ def run(argv, *, cwd=ROOT, env=None, expected=0):
     return result.stdout + result.stderr
 
 
+def require_current_update(output):
+    # Skills CLI 1.6.0 can print success and exit 0 after a failed source check.
+    lower = output.lower()
+    if "failed to check" in lower or "failed to update" in lower:
+        raise RuntimeError("Skills CLI update failed:\n" + output)
+    if "all global skills are up to date" not in lower:
+        raise RuntimeError("Skills CLI did not confirm the pinned source:\n" + output)
+
+
 def expected_files():
     entries = subprocess.check_output(["git", "ls-tree", "-rz", TAG, "skills/crew"], cwd=ROOT)
     files = {}
@@ -71,9 +80,9 @@ def main():
             "DISABLE_TELEMETRY": "1", "DO_NOT_TRACK": "1", "CI": "1",
         }
 
-        def cli(*args):
+        def cli(*args, extra_env=None):
             # Both confirmations are suppressed only for these disposable fixtures.
-            return run(["npx", "--yes", PACKAGE, *args], cwd=work, env=env)
+            return run(["npx", "--yes", PACKAGE, *args], cwd=work, env=env | (extra_env or {}))
 
         add = ("add", "weirdry/crew#" + TAG, "-g", "-a", "codex", "claude-code", "-y")
         cli(*add)
@@ -104,15 +113,47 @@ def main():
         # Pin the documented ownership limits: source checks are not drift checks.
         skill = codex / "SKILL.md"
         skill.write_bytes(skill.read_bytes() + b"\nSynthetic local edit.\n")
-        assert "up to date" in cli("update", "crew", "-g", "-y").lower()
+        require_current_update(cli("update", "crew", "-g", "-y"))
         assert inventory(codex) != expected
         check_ref()
+
+        # Reproduce the real CLI's misleading success with both transports down.
+        failed_bin = work / "failed-bin"
+        failed_bin.mkdir()
+        git = failed_bin / "git"
+        git.write_text('#!/bin/sh\nprintf "%s\\n" "$*" >> "$CREW_TEST_GIT_FAILURE_LOG"\n'
+                       'echo "synthetic Git transport failure" >&2\nexit 128\n')
+        git.chmod(0o755)
+        hook = work / "failed-fetch.cjs"
+        hook.write_text('globalThis.fetch = async () => {\n'
+                        '  require("node:fs").appendFileSync(process.env.CREW_TEST_HTTP_FAILURE_LOG, "fetch\\n");\n'
+                        '  throw new Error("synthetic HTTP transport failure");\n};\n')
+        http_log, git_log = work / "http-failure.log", work / "git-failure.log"
+        before_files, before_lock = inventory(codex), lock_path.read_bytes()
+        failed_output = cli("update", "crew", "-g", "-y", extra_env={
+            "PATH": str(failed_bin) + os.pathsep + env["PATH"],
+            "NODE_OPTIONS": "--require " + json.dumps(str(hook)),
+            "npm_config_offline": "true",  # Reuse the package fetched by add.
+            "CREW_TEST_HTTP_FAILURE_LOG": str(http_log),
+            "CREW_TEST_GIT_FAILURE_LOG": str(git_log),
+        })
+        assert http_log.read_text() and "clone" in git_log.read_text()
+        assert "failed to check" in failed_output.lower() and "up to date" in failed_output.lower()
+        try:
+            require_current_update(failed_output)
+        except RuntimeError:
+            pass
+        else:
+            raise AssertionError("The update validator accepted a failed source check")
+        assert inventory(codex) == before_files and lock_path.read_bytes() == before_lock
+
         cli(*add)
         assert inventory(codex) == expected  # Re-add replaces the local edit.
         check_ref()
         print(json.dumps({"installer": PACKAGE, "release": TAG, "source": source,
                           "files_per_layout": len(expected), "layouts": ["codex", "claude"],
-                          "installation_and_helpers": "passed", "pinned_update_and_readd": "passed"}))
+                          "installation_and_helpers": "passed", "pinned_update_and_readd": "passed",
+                          "failed_source_check_rejected": "passed"}))
 
 
 if __name__ == "__main__":
