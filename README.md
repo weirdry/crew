@@ -202,10 +202,15 @@ documented behaviour and runs with no Herdr server; it is documented in
 
 On September 26, 2026, the state-root probe ran against a live Claude Code worker in auto mode:
 its append landed in the state root with no dialog. For that configuration, the lead does not
-reuse approvals and escalates every class-(b) request to the user individually; this is a lead
-rule, not something `approval.sh` enforces.
+reuse approval records and escalates each visible class-(b) request individually. An action that
+the worker's native permission mode runs without a dialog cannot be stopped by Crew's approval
+loop. Crew can still scope work and review artifacts under those effective permissions; it must
+not claim pre-execution approval enforcement for silently permitted actions. The result depends
+on the worker's permissions, so the reversed Claude-lead/Codex-worker pairing needs its own
+probe after any permission change.
 
-After the same session was switched to manual mode, both probes surfaced dialogs, and the lead
+The lead switched the same session to manual mode to test dialogs, not as a required operating
+mode. Both manual-mode probes surfaced dialogs, and the lead
 sent a one-shot Yes to each:
 
 - a workspace Write;

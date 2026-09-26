@@ -9,7 +9,9 @@
 - Record the Codex-led Claude Code live validation, including the observed
   state-root write in auto mode and the one-shot manual-mode approval path.
   Disable approval reuse for the observed Claude configuration by lead rule;
-  the live Claude Bash layout still refuses approval extraction.
+  the live Claude Bash layout still refuses approval extraction. Clarify that
+  Crew's pre-execution approval handling applies only to actions surfaced by
+  the worker's own permission setting; task scoping and review remain usable.
 - Refresh packaged installation examples to the verified published v0.1.3 tag.
   The managed installer and retained-state formats are unchanged.
 

@@ -94,10 +94,14 @@ exit 4 does not isolate wrapping as the cause. The case brings the offline suite
 
 **Consequence.** The manual-mode dialog covers one Bash write path. It does not establish that
 the state root protects approval records, and the extractor refuses the observed layout. For
-this Claude configuration in either mode, the lead does not reuse approvals and escalates every
-class-(b) request individually. When extraction fails, the lead follows the `SKILL.md` one-shot
-fallback: re-read and compare the dialog, send unpinned, then compare sequences after the send.
-This is a lead rule. `approval.sh` does not refuse a Claude partner by itself.
+this Claude configuration in either mode, the lead does not reuse approvals and escalates each
+visible class-(b) request individually. When extraction fails, the lead follows the `SKILL.md`
+one-shot fallback: re-read and compare the dialog, send unpinned, then compare sequences after
+the send. The auto-mode append produced no dialog, so Crew did not enforce pre-execution approval
+for that write. No approval forgery or harmful state change was observed. Manual mode was used to
+test the dialog path, not proposed as a required operating mode. This is a lead rule;
+`approval.sh` does not refuse a Claude partner by itself. An earlier Codex-worker probe blocked
+the same kind of append in its tested permission setting; another Codex setting could differ.
 
 **Consecutive edit dialogs.** In a later manual-mode run, Claude showed several edit dialogs in a
 row. The lead sent a one-shot Yes with `answer-dialog.sh`. Claude applied the requested edit and
