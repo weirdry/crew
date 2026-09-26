@@ -41,6 +41,11 @@ needed.
 The suite covers `worker-start.sh`, `worker-stop.sh`, `answer-dialog.sh`, `approval.sh`,
 `run-finish.sh`, `artifact-done.sh`, and `status.sh`. The `run-init.sh` cases exercise rejected
 state roots; its successful initialization and Git wiring are not covered by this suite.
+Worker-start fixtures assert the native Codex workspace-write and Claude auto sandbox launch
+arguments, including the canonical state-root path in Claude's Bash and file-tool deny rules.
+They do not prove that the installed agents enforce those settings; that requires a live probe.
+The [validation note](live-claude-validation.md) records separate direct Claude CLI smoke
+evidence and the remaining Herdr launch boundary.
 The Claude-layout approval frame is synthetic. A live manual-mode Claude Bash dialog was
 observed, but `approval.sh check` refused its layout; see
 [the live validation note](live-claude-validation.md). The fixture covers the refusal, not

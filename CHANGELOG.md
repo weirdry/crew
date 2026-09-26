@@ -12,6 +12,12 @@
   the live Claude Bash layout still refuses approval extraction. Clarify that
   Crew's pre-execution approval handling applies only to actions surfaced by
   the worker's own permission setting; task scoping and review remain usable.
+- Start new Codex workers with workspace-write and on-request approvals, and
+  new Claude workers in auto mode with native sandbox and file-edit denial for
+  the authority state root. Existing live partners keep their permissions;
+  approval reuse still requires a successful live state-root probe. The launch
+  arguments have offline coverage and direct Claude CLI smoke evidence, but
+  their effective Herdr behavior is not yet verified.
 - Refresh packaged installation examples to the verified published v0.1.3 tag.
   The managed installer and retained-state formats are unchanged.
 
