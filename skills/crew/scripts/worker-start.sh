@@ -51,6 +51,26 @@ state_json=$("$script_dir/state-root.sh") || exit 15
 caller_cwd=$(python3 -c 'import json, sys; print(json.loads(sys.argv[1])["cwd"])' "$state_json") || exit 15
 state_root=$(python3 -c 'import json, sys; print(json.loads(sys.argv[1])["state_root"])' "$state_json") || exit 15
 partner_name=$(python3 -c 'import json, sys; print(json.loads(sys.argv[1])["partner_name"])' "$state_json") || exit 15
+claude_settings=
+if [ "$worker_kind" = claude ]; then
+  claude_settings=$(python3 - "$state_root" <<'PY'
+import json
+import sys
+
+state_root = sys.argv[1]
+edit_root = "//" + state_root.lstrip("/")
+print(json.dumps({
+    "permissions": {"deny": [f"Edit({edit_root})", f"Edit({edit_root}/**)"]},
+    "sandbox": {
+        "enabled": True,
+        "failIfUnavailable": True,
+        "allowUnsandboxedCommands": False,
+        "filesystem": {"disabled": False, "denyWrite": [state_root]},
+    },
+}, separators=(",", ":"), sort_keys=True))
+PY
+  ) || exit 15
+fi
 workspace_json=$(python3 -c '
 from pathlib import Path
 import json, re, sys
@@ -342,7 +362,25 @@ if ! herdr pane wait-output "$pane_id" --regex '[#$%>❯] ?$' --source detection
   cleanup_after_failure 5
 fi
 
-if ! herdr agent start "$worker_name" --kind "$worker_kind" --pane "$pane_id" --timeout 60000 >/dev/null; then
+case "$worker_kind" in
+  codex)
+    set -- --sandbox workspace-write --ask-for-approval on-request \
+      -c 'approvals_reviewer="user"' \
+      -c 'sandbox_workspace_write.writable_roots=[]'
+    ;;
+  claude)
+    set -- --permission-mode auto --settings "$claude_settings"
+    ;;
+  *)
+    set --
+    ;;
+esac
+
+if [ "$#" -gt 0 ]; then
+  herdr agent start "$worker_name" --kind "$worker_kind" --pane "$pane_id" \
+    --timeout 60000 -- "$@" >/dev/null || cleanup_after_failure 6
+elif ! herdr agent start "$worker_name" --kind "$worker_kind" --pane "$pane_id" \
+  --timeout 60000 >/dev/null; then
   cleanup_after_failure 6
 fi
 

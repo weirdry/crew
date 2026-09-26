@@ -5,6 +5,34 @@ September 26–27, 2026. It is observed live behavior, separate from the offline
 [`README.md`](../README.md). Real paths, pane IDs, run IDs, and transcripts are withheld;
 `<placeholders>` stand in for them.
 
+The worker in this note started before `worker-start.sh` pinned native Claude auto sandbox
+arguments. Its writable state-root result remains evidence for that earlier configuration.
+The new launch arguments have synthetic helper coverage and separate native CLI smoke evidence
+below. Their effective behavior when launched through Herdr is still unverified.
+
+## Native CLI permission smoke, September 27, 2026
+
+Claude Code 2.1.283 ran directly through `claude -p` with `claude-opus-5-5`, high effort, the
+new inline settings shape, and disposable sibling workspace and protected directories under
+`/private/tmp`. Each session used a fresh sentinel containing one original line, and the
+temporary directories were removed after inspection. These were not Herdr Crew runs.
+
+- In auto mode, a Bash write inside the workspace succeeded. A Bash append to the protected
+  sentinel was rejected by the auto classifier as `Self-Modification` before reaching the
+  sandbox. The sentinel stayed unchanged.
+- In a separate auto session, a built-in Edit attempt on the protected sentinel was refused
+  with `File is in a directory that is denied by your permission settings.` The sentinel
+  stayed unchanged.
+- To exercise the subprocess boundary independently, a separate `acceptEdits` session also
+  allowed one `Bash(python3 *)` command in its temporary settings. A Python append attempt
+  exited 1 with `PermissionError: [Errno 1] Operation not permitted`. The sentinel stayed
+  unchanged. This tests sandboxed execution, not the steady-state auto classifier.
+
+The native smoke shows those tool paths under synthetic settings and paths. It does not prove
+that Herdr forwards the new arguments, that an attached older worker changes permissions, or
+that the production state root is protected. Approval reuse remains conditional on the live
+worker probes in `SKILL.md`.
+
 ## Tested configuration
 
 | Component | Value |

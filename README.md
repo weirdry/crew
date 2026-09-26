@@ -152,9 +152,10 @@ agents render on the alternate screen, where output that scrolls away cannot be 
 any `--lines` value. Every phase therefore writes an artifact file and replies with only its
 path. This also keeps long prompts out of shell quoting, and makes a run resumable.
 Lead-only pointers, pane ownership, and approval records live in a validated external state root,
-while worker-authored artifacts remain in the workspace. A worker therefore cannot forge a lead
-action without an escalated outside-workspace write — but only when the worker's own sandbox
-turns that write into a dialog. Claude Code in auto mode did not; see Status.
+while worker-authored artifacts remain in the workspace. `worker-start.sh` now pins a
+workspace-scoped Codex profile or a state-root-denying Claude auto profile when creating a
+worker. An already-live partner keeps its existing permissions. Approval-record authority still
+requires a live state-root write probe for the effective worker configuration; see Status.
 
 **Completion is proved by artifacts.** `agent prompt --wait` settles on lifecycle transitions,
 not turn boundaries — if the worker was already busy, a settle can report the previous turn
@@ -168,9 +169,9 @@ Ambiguous cases escalate. A user-granted reusable answer covers either one exact
 or one immutable, verbatim-shown command/edit set under a constrained resolved root; the lead
 never selects the worker's broader "don't ask again" option.
 
-**The worker starts with no extra arguments.** Permissions come from the worker's own
-configuration rather than from flags the skill injects. Supervision, not privilege escalation,
-is what keeps the loop unblocked.
+**Routine work stays automatic.** Codex starts with workspace-write and on-request approvals.
+Claude starts in auto mode with sandboxed Bash and state-root edit denial. The launch settings
+constrain the authority state; they do not turn every workspace edit into a manual approval.
 
 **Objections must be falsifiable.** Every finding carries a concrete failure scenario and, if
 it blocks, a condition that would retract it. Findings are capped and ranked, every review ends
@@ -193,21 +194,25 @@ Ten shell entry points carry the mechanics: read-only status inspection, context
 publication and reading plans, run initialization and ending, partner attach-or-create
 and explicit retirement, the artifact check, the guarded key
 send, the typed approval record with user-visible set grants, and the external state root that
-keeps the lead's authority files outside the workspace. That root is out of the worker's reach
-only when the worker's own sandbox turns such a write into a dialog; Claude Code in auto mode
-did not, so the fallback below applies. Classification, approval authority, and verdicts stay
-with the lead. An offline suite of 203 helper cases and 23 relay tests pins the scripts'
-documented behaviour and runs with no Herdr server; it is documented in
+keeps the lead's authority files outside the workspace. A pinned native launch profile now
+requests state-root write restrictions for newly created Codex and Claude workers; an attached
+worker keeps its earlier profile. The lead checks actual protection before reusing approval records.
+Classification, approval authority, and verdicts stay with the lead. The offline helper and
+relay suites pin the scripts' documented behaviour and run with no Herdr server. They are
+documented in
 [`tests/README.md`](tests/README.md) and deliberately excludes `run-init.sh`'s Git wiring.
 
-On September 26, 2026, the state-root probe ran against a live Claude Code worker in auto mode:
+On September 26, 2026, the state-root probe ran against a live Claude Code worker in auto mode
+without the new launch profile:
 its append landed in the state root with no dialog. For that configuration, the lead does not
 reuse approval records and escalates each visible class-(b) request individually. An action that
 the worker's native permission mode runs without a dialog cannot be stopped by Crew's approval
 loop. Crew can still scope work and review artifacts under those effective permissions; it must
 not claim pre-execution approval enforcement for silently permitted actions. The result depends
 on the worker's permissions, so the reversed Claude-lead/Codex-worker pairing needs its own
-probe after any permission change.
+probe after any permission change. The new configured profiles have offline launch-argument
+coverage, and a direct Claude CLI smoke exercised workspace writes, protected-path Edit denial,
+and a sandboxed subprocess refusal. Their effective behavior has not yet been validated in Herdr.
 
 The lead switched the same session to manual mode to test dialogs, not as a required operating
 mode. Both manual-mode probes surfaced dialogs, and the lead

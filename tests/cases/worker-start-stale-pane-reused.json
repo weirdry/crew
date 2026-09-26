@@ -15,7 +15,7 @@
     {"argv": ["agent", "get", "crew-worker"], "results": [{"error": "agent_not_found"}]},
     {"argv": ["pane", "get", "worker-1"], "results": [{"pane": {"pane_id": "worker-1"}}]},
     {"argv": ["pane", "wait-output", "worker-1", "--regex", "[#$%>❯] ?$", "--source", "detection", "--lines", "5", "--timeout", "60000"], "results": [{}]},
-    {"argv": ["agent", "start", "crew-worker", "--kind", "codex", "--pane", "worker-1", "--timeout", "60000"], "results": [{}]},
+    {"argv": ["agent", "start", "crew-worker", "--kind", "codex", "--pane", "worker-1", "--timeout", "60000", "--", "--sandbox", "workspace-write", "--ask-for-approval", "on-request", "-c", "approvals_reviewer=\"user\"", "-c", "sandbox_workspace_write.writable_roots=[]"], "results": [{}]},
     {"argv": ["pane", "wait-output", "worker-1", "--regex", "Ask Codex", "--source", "visible", "--timeout", "60000"], "results": [{}]}
   ],
   "expect": {
@@ -24,7 +24,7 @@
     "calls_exact": [
       ["agent", "list"], ["agent", "get", "crew-worker"], ["pane", "get", "worker-1"],
       ["pane", "wait-output", "worker-1", "--regex", "[#$%>❯] ?$", "--source", "detection", "--lines", "5", "--timeout", "60000"],
-      ["agent", "start", "crew-worker", "--kind", "codex", "--pane", "worker-1", "--timeout", "60000"],
+      ["agent", "start", "crew-worker", "--kind", "codex", "--pane", "worker-1", "--timeout", "60000", "--", "--sandbox", "workspace-write", "--ask-for-approval", "on-request", "-c", "approvals_reviewer=\"user\"", "-c", "sandbox_workspace_write.writable_roots=[]"],
       ["pane", "wait-output", "worker-1", "--regex", "Ask Codex", "--source", "visible", "--timeout", "60000"]
     ],
     "calls_absent_prefix": [["pane", "split"]]
