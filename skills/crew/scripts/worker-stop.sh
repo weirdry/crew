@@ -18,7 +18,7 @@ if [ "$#" -ne 0 ]; then
 fi
 
 if [ "${HERDR_ENV:-}" != 1 ] || [ -z "${HERDR_PANE_ID:-}" ]; then
-  printf '%s\n' 'worker-stop.sh must run inside a Herdr pane' >&2
+  printf '%s\n' 'worker-stop.sh: Herdr pane context unavailable to this command' >&2
   exit 3
 fi
 
