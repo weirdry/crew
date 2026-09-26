@@ -24,11 +24,13 @@ test "${HERDR_ENV:-}" = 1
 If this check fails, report that Herdr pane context is unavailable to this
 agent's command runner and stop. Do not infer that the user's terminal is outside
 Herdr. A Codex CLI session using the shared background server can have this
-failure even when its visible CLI runs in a Herdr pane. In that case, the user
-can exit Codex and resume in the same pane with
-`codex resume --no-daemon <session-id>` (or start a new session with
-`codex --no-daemon`). Recheck `HERDR_ENV` and `HERDR_PANE_ID` in the resumed
-command runner before any Herdr control command. Never fabricate these values.
+failure even when its visible CLI runs in a Herdr pane. A fresh Codex lead
+session may be launched there with `codex --no-daemon`, but verify
+`HERDR_ENV=1` and `HERDR_PANE_ID` in that session's command runner before any
+Herdr control command. In an observed Codex CLI 0.157.1 session,
+`codex resume --no-daemon` left the existing conversation's command runner on
+the shared daemon; do not recommend resume as a verified fix. Never fabricate
+pane variables.
 
 Determine your own kind, then determine the partner kind:
 
