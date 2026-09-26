@@ -5,7 +5,10 @@
 #   3  Guard refused: the worker was not blocked on the expected visible confirmation option list.
 #   4  Herdr state or pane output could not be read before sending keys.
 #   5  send-keys rejected the requested keys; the captured sequence is printed.
-#   6  state_change_seq did not advance before timeout; sequence data is printed.
+#   6  state_change_seq did not advance before timeout, and the visible frame was unchanged or
+#      unreadable; sequence data is printed. Delivery is uncertain.
+#   7  state_change_seq did not advance before timeout, but the visible frame changed; sequence
+#      data is printed. This shows only a changed frame, not which dialog received the keys.
 
 set -u
 
@@ -191,6 +194,13 @@ while :; do
   if [ "$expired" = yes ]; then
     printf 'pre_key_seq=%s\n' "$pre_key_seq"
     printf 'post_key_seq=%s\n' "$last_seq"
+    # One final read with the guard's arguments; the keys are never sent again.
+    if final_frame=$(
+      herdr agent read "$worker" --source visible --lines 120 --format text 2>/dev/null
+    ) && [ "$final_frame" != "$frame" ]; then
+      printf '%s\n' 'outcome=visible-changed'
+      exit 7
+    fi
     printf '%s\n' 'outcome=timeout'
     exit 6
   fi

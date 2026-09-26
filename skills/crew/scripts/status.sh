@@ -110,6 +110,10 @@ def prose(text: str) -> list[str]:
     return lines
 
 
+# Herdr pane IDs may carry one workspace-qualified colon segment, such as w1:p2.
+PANE_ID = r"[A-Za-z0-9_-]+(?::[A-Za-z0-9_-]+)?"
+
+
 def field(lines: list[str], name: str, pattern: str) -> str | None:
     candidates = [line for line in lines if re.match(rf"^- {name}:", line)]
     match = (
@@ -189,11 +193,12 @@ def read_partner(state_root: Path, state_lines: list[str]) -> None:
         return
     try:
         receipt = json.loads(text) if availability == "present" else None
-        identity = ("worker_name", "worker_kind", "worker_pane_id", "lead_pane_id")
+        identity = (("worker_name", r"[A-Za-z0-9_-]+"), ("worker_kind", r"[A-Za-z0-9_-]+"),
+                    ("worker_pane_id", PANE_ID), ("lead_pane_id", PANE_ID))
         valid = (isinstance(receipt, dict) and receipt.get("version") == 1
                  and all(
                      isinstance(receipt.get(key), str)
-                     and re.fullmatch(r"[A-Za-z0-9_-]+", receipt[key]) for key in identity
+                     and re.fullmatch(pattern, receipt[key]) for key, pattern in identity
                  )
                  and re.fullmatch(r"[a-z][a-z0-9_-]{0,31}", receipt["worker_name"]))
     except (ValueError, TypeError):
@@ -208,8 +213,10 @@ def read_partner(state_root: Path, state_lines: list[str]) -> None:
         return
     partner.update({"name": receipt["worker_name"], "kind": receipt["worker_kind"],
                     "pane_id": receipt["worker_pane_id"], "lead_pane_id": receipt["lead_pane_id"]})
-    for label, key in (("Worker", "name"), ("Pane", "pane_id")):
-        recorded = field(state_lines, label, r"[A-Za-z0-9_-]+")
+    for label, key, pattern in (
+        ("Worker", "name", r"[A-Za-z0-9_-]+"), ("Pane", "pane_id", PANE_ID),
+    ):
+        recorded = field(state_lines, label, pattern)
         if recorded and recorded != "none" and recorded != partner[key]:
             attention(
                 "run-partner-mismatch",

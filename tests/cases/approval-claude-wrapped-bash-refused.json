@@ -1,0 +1,24 @@
+{
+  "id": "approval-claude-wrapped-bash-refused",
+  "script": "approval.sh",
+  "args": ["record", "crew-worker"],
+  "frame_evidence": "synthetic structural recreation of a live Claude Code 2.1.281 Bash dialog that returned exit 4 from approval.sh check; command, path, and IDs are invented, and the single-rule layout, not only the wrap, defeats extraction",
+  "setup": {
+    "dirs": [".crew/run-1"],
+    "files": {
+      "{state}/.current": "run-1\n",
+      "{state}/worker.json": {"json": {"version": 1, "lead_pane_id": "lead-1", "worker_pane_id": "worker-1", "worker_name": "crew-worker", "worker_kind": "claude"}}
+    }
+  },
+  "herdr": [
+    {"argv": ["agent", "get", "crew-worker"], "results": [{"agent": {"pane_id": "worker-1", "agent_status": "blocked"}}]},
+    {"argv": ["agent", "read", "crew-worker", "--source", "visible", "--lines", "200", "--format", "text"], "results": [{"stdout": "────────────────────────────────────────\n Bash command\n\n Tip: synthetic tip line\n\n   │ echo synthetic-probe >> /synthetic/state/workspace-7f3a/\n   │ probe.txt\n   Append one synthetic probe line\n\n This command requires approval\n\n Do you want to proceed?\n ❯ 1. Yes\n   2. Yes, and don't ask again\n   3. Yes, and switch to auto mode\n   4. No\n"}]}
+  ],
+  "expect": {
+    "status": 4,
+    "stderr_contains": ["complete command region is absent"],
+    "absent": ["{state}/run-1/approvals.jsonl"],
+    "calls_exact": [["agent", "get", "crew-worker"], ["agent", "read", "crew-worker", "--source", "visible", "--lines", "200", "--format", "text"]]
+  },
+  "read_only": true
+}

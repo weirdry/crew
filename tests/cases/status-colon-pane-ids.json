@@ -1,0 +1,65 @@
+{
+  "args": [
+    "--json"
+  ],
+  "setup": {
+    "files": {
+      "{state}/.current": "run-1\n",
+      "{state}/worker.json": {
+        "json": {
+          "version": 1,
+          "lead_pane_id": "w7Q:p1",
+          "worker_pane_id": "w7Q:p3",
+          "worker_name": "crew-worker",
+          "worker_kind": "claude"
+        }
+      },
+      ".crew/run-1/state.md": "# Crew state\n\n- Phase: 2\n- Round: 1 of 3\n- Worker: crew-worker\n- Pane: w7Q:p3\n- Lead pane: w7Q:p1\n",
+      ".git/info/exclude": ".crew/\n"
+    }
+  },
+  "herdr": [
+    {
+      "argv": [
+        "agent",
+        "get",
+        "crew-worker"
+      ],
+      "results": [
+        {
+          "agent": {
+            "name": "crew-worker",
+            "agent": "claude",
+            "pane_id": "w7Q:p3",
+            "agent_status": "working"
+          }
+        }
+      ]
+    }
+  ],
+  "expect": {
+    "status": 0,
+    "calls_exact": [
+      [
+        "agent",
+        "get",
+        "crew-worker"
+      ]
+    ],
+    "stdout_json_paths": {
+      "run.phase": 2,
+      "run.round": 1,
+      "partner.record": "present",
+      "partner.name": "crew-worker",
+      "partner.kind": "claude",
+      "partner.pane_id": "w7Q:p3",
+      "partner.lead_pane_id": "w7Q:p1",
+      "partner.observation": "live",
+      "partner.agent_status": "working",
+      "attention": []
+    }
+  },
+  "id": "status-colon-pane-ids",
+  "script": "status.sh",
+  "read_only": true
+}

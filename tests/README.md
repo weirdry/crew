@@ -41,8 +41,15 @@ needed.
 The suite covers `worker-start.sh`, `worker-stop.sh`, `answer-dialog.sh`, `approval.sh`,
 `run-finish.sh`, `artifact-done.sh`, and `status.sh`. The `run-init.sh` cases exercise rejected
 state roots; its successful initialization and Git wiring are not covered by this suite.
-The Claude-layout approval frame is synthetic and does not verify the branch against a live
-Claude permission dialog.
+The Claude-layout approval frame is synthetic. A live manual-mode Claude Bash dialog was
+observed, but `approval.sh check` refused its layout; see
+[the live validation note](live-claude-validation.md). The fixture covers the refusal, not
+successful extraction.
+
+The `answer-dialog.sh` cases assert one key send followed by a final visible read when
+`state_change_seq` does not advance. An unchanged frame returns exit 6; a changed frame returns
+exit 7. Both outcomes remain uncertain. Exit 7 has synthetic coverage only; the fixed helper
+has not been rerun against a live consecutive-dialog sequence.
 
 ## Status inspection coverage
 
@@ -100,7 +107,7 @@ real-world fact, or that live Herdr delivered the prompt.
 
 ## Release and installation coverage
 
-`sh tests/ci.sh` runs shell syntax checks, the 200 helper fixture cases and 23
+`sh tests/ci.sh` runs shell syntax checks, the 203 helper fixture cases and 23
 relay tests, the standard-library release suite, and version policy against
 `origin/main`. Python 3.11+ is required. Run the focused release suite with:
 
