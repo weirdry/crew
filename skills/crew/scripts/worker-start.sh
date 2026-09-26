@@ -39,7 +39,7 @@ raise SystemExit(0 if re.fullmatch(r"[a-z][a-z0-9_-]{0,31}", sys.argv[1]) else 1
 fi
 
 if [ "${HERDR_ENV:-}" != 1 ] || [ -z "${HERDR_PANE_ID:-}" ]; then
-  printf '%s\n' 'worker-start.sh must run inside a Herdr pane' >&2
+  printf '%s\n' 'worker-start.sh: Herdr pane context unavailable to this command' >&2
   exit 3
 fi
 

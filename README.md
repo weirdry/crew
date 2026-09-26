@@ -23,6 +23,15 @@ for that. The skill refuses the same-kind case on purpose.
 - Two supported agent kinds installed locally (e.g. Claude Code and Codex)
 - A Git working tree, for diff-based review
 
+When Codex is the lead, its shell commands must receive the Herdr pane context.
+Recent Codex CLI versions can run commands through a shared background server
+whose process did not start in the pane. If the lead's command tool cannot see
+`HERDR_ENV=1` and `HERDR_PANE_ID`, exit Codex and resume it in the same Herdr
+pane with `codex resume --no-daemon <session-id>`. For a new session, use
+`codex --no-daemon`. Verify both variables from the resumed lead's command tool
+before using Crew. Do not set the variables by hand or target the Herdr UI's
+focused pane as a substitute for caller context.
+
 ## Install
 
 For a new personal installation in Codex and Claude Code:

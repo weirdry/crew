@@ -21,7 +21,14 @@ Check all of these before creating any layout. Stop and report on the first fail
 test "${HERDR_ENV:-}" = 1
 ```
 
-Not inside a Herdr pane: say so and stop.
+If this check fails, report that Herdr pane context is unavailable to this
+agent's command runner and stop. Do not infer that the user's terminal is outside
+Herdr. A Codex CLI session using the shared background server can have this
+failure even when its visible CLI runs in a Herdr pane. In that case, the user
+can exit Codex and resume in the same pane with
+`codex resume --no-daemon <session-id>` (or start a new session with
+`codex --no-daemon`). Recheck `HERDR_ENV` and `HERDR_PANE_ID` in the resumed
+command runner before any Herdr control command. Never fabricate these values.
 
 Determine your own kind, then determine the partner kind:
 
