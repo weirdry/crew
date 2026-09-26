@@ -18,6 +18,9 @@
   approval reuse still requires a successful live state-root probe. The launch
   arguments have offline coverage and direct Claude CLI smoke evidence, but
   their effective Herdr behavior is not yet verified.
+- Explain how a Codex lead can resume without its shared background server when
+  the command runner lacks Herdr pane context. Missing context now reports the
+  command boundary without claiming the user's terminal is outside Herdr.
 - Refresh packaged installation examples to the verified published v0.1.3 tag.
   The managed installer and retained-state formats are unchanged.
 
