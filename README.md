@@ -25,12 +25,13 @@ for that. The skill refuses the same-kind case on purpose.
 
 When Codex is the lead, its shell commands must receive the Herdr pane context.
 Recent Codex CLI versions can run commands through a shared background server
-whose process did not start in the pane. If the lead's command tool cannot see
-`HERDR_ENV=1` and `HERDR_PANE_ID`, exit Codex and resume it in the same Herdr
-pane with `codex resume --no-daemon <session-id>`. For a new session, use
-`codex --no-daemon`. Verify both variables from the resumed lead's command tool
-before using Crew. Do not set the variables by hand or target the Herdr UI's
-focused pane as a substitute for caller context.
+whose process did not start in the pane. For a new Codex lead session, launch
+`codex --no-daemon` in the Herdr pane and verify `HERDR_ENV=1` and
+`HERDR_PANE_ID` from that lead's command tool before using Crew. Resuming an
+existing daemon-owned conversation with `codex resume --no-daemon` did not move
+its command runner in an observed Codex CLI 0.157.1 session; do not treat that
+flag on resume as proof of recovery. Do not set pane variables by hand or target
+the Herdr UI's focused pane as a substitute for caller context.
 
 ## Install
 
