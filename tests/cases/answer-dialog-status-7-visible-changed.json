@@ -1,0 +1,29 @@
+{
+  "id": "answer-dialog-status-7-visible-changed",
+  "script": "answer-dialog.sh",
+  "args": ["crew-worker", "enter"],
+  "timeout": 12,
+  "frame_evidence": "synthetic Claude-style consecutive edit dialogs; file names are invented, and the sequence stays unchanged as observed live",
+  "herdr": [
+    {"argv": ["agent", "get", "crew-worker"], "results": [
+      {"agent": {"agent_status": "blocked", "state_change_seq": 20}},
+      {"agent": {"agent_status": "blocked", "state_change_seq": 20}},
+      {"agent": {"agent_status": "blocked", "state_change_seq": 20}}
+    ], "repeat_last": true},
+    {"argv": ["agent", "read", "crew-worker", "--source", "visible", "--lines", "120", "--format", "text"], "results": [
+      {"stdout": "────────────────────────────────────────\n Edit file\n synthetic/first-note.md\n\n Do you want to make this edit to first-note.md?\n ❯ 1. Yes\n   2. Yes, allow all edits during this session\n   3. No\n"},
+      {"stdout": "────────────────────────────────────────\n Edit file\n synthetic/second-note.md\n\n Do you want to make this edit to second-note.md?\n ❯ 1. Yes\n   2. Yes, allow all edits during this session\n   3. No\n"}
+    ]},
+    {"argv": ["agent", "send-keys", "crew-worker", "enter"], "results": [{}]}
+  ],
+  "expect": {
+    "status": 7,
+    "stdout_contains": ["pre_key_seq=20", "post_key_seq=20", "outcome=visible-changed"],
+    "stdout_absent": ["outcome=timeout"],
+    "call_counts": [
+      {"argv": ["agent", "get", "crew-worker"], "min": 3},
+      {"argv": ["agent", "read", "crew-worker", "--source", "visible", "--lines", "120", "--format", "text"], "count": 2},
+      {"argv": ["agent", "send-keys", "crew-worker", "enter"], "count": 1}
+    ]
+  }
+}

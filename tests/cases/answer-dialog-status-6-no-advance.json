@@ -9,7 +9,10 @@
       {"agent": {"agent_status": "blocked", "state_change_seq": 10}},
       {"agent": {"agent_status": "blocked", "state_change_seq": 10}}
     ], "repeat_last": true},
-    {"argv": ["agent", "read", "crew-worker", "--source", "visible", "--lines", "120", "--format", "text"], "results": [{"stdout": "Do you want to continue?\n1. Yes\n2. No\n"}]},
+    {"argv": ["agent", "read", "crew-worker", "--source", "visible", "--lines", "120", "--format", "text"], "results": [
+      {"stdout": "Do you want to continue?\n1. Yes\n2. No\n"},
+      {"stdout": "Do you want to continue?\n1. Yes\n2. No\n"}
+    ]},
     {"argv": ["agent", "send-keys", "crew-worker", "enter"], "results": [{}]}
   ],
   "expect": {
@@ -19,6 +22,10 @@
       ["agent", "read", "crew-worker", "--source", "visible", "--lines", "120", "--format", "text"],
       ["agent", "send-keys", "crew-worker", "enter"]
     ],
-    "call_counts": [{"argv": ["agent", "get", "crew-worker"], "min": 3}]
+    "call_counts": [
+      {"argv": ["agent", "get", "crew-worker"], "min": 3},
+      {"argv": ["agent", "read", "crew-worker", "--source", "visible", "--lines", "120", "--format", "text"], "count": 2},
+      {"argv": ["agent", "send-keys", "crew-worker", "enter"], "count": 1}
+    ]
   }
 }

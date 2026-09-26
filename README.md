@@ -153,7 +153,8 @@ any `--lines` value. Every phase therefore writes an artifact file and replies w
 path. This also keeps long prompts out of shell quoting, and makes a run resumable.
 Lead-only pointers, pane ownership, and approval records live in a validated external state root,
 while worker-authored artifacts remain in the workspace. A worker therefore cannot forge a lead
-action without an escalated outside-workspace write.
+action without an escalated outside-workspace write — but only when the worker's own sandbox
+turns that write into a dialog. Claude Code in auto mode did not; see Status.
 
 **Completion is proved by artifacts.** `agent prompt --wait` settles on lifecycle transitions,
 not turn boundaries — if the worker was already busy, a settle can report the previous turn
@@ -192,14 +193,37 @@ Ten shell entry points carry the mechanics: read-only status inspection, context
 publication and reading plans, run initialization and ending, partner attach-or-create
 and explicit retirement, the artifact check, the guarded key
 send, the typed approval record with user-visible set grants, and the external state root that
-keeps the lead's authority files where the worker cannot write them. Classification, approval
-authority, and verdicts stay with the lead. An offline suite of 200 existing cases and
-23 relay tests pins the scripts' documented behaviour and runs with no Herdr server;
-it is documented in
+keeps the lead's authority files outside the workspace. That root is out of the worker's reach
+only when the worker's own sandbox turns such a write into a dialog; Claude Code in auto mode
+did not, so the fallback below applies. Classification, approval authority, and verdicts stay
+with the lead. An offline suite of 203 helper cases and 23 relay tests pins the scripts'
+documented behaviour and runs with no Herdr server; it is documented in
 [`tests/README.md`](tests/README.md) and deliberately excludes `run-init.sh`'s Git wiring.
 
-Not yet verified against a live Claude worker: the Claude-layout dialog extractor and the
-state-root sandbox probe. Both are disclosed as such in `SKILL.md`.
+On September 26, 2026, the state-root probe ran against a live Claude Code worker in auto mode:
+its append landed in the state root with no dialog. For that configuration, the lead does not
+reuse approvals and escalates every class-(b) request to the user individually; this is a lead
+rule, not something `approval.sh` enforces.
+
+After the same session was switched to manual mode, both probes surfaced dialogs, and the lead
+sent a one-shot Yes to each:
+
+- a workspace Write;
+- a state-root Bash append, which the user authorized once. The line landed exactly once.
+
+The Claude-layout extractor refused that live Bash dialog: `approval.sh check` exited 4 and no
+approval was recorded. The lead sent the one-shot answer only after rechecking the visible
+command. Only one state-root write path was probed in manual mode, so approval reuse stays
+disabled for this Claude configuration.
+
+In a later manual-mode run, Claude accepted one edit and immediately showed another dialog
+without a `state_change_seq` increase. `answer-dialog.sh` reported a timeout although the
+edit had landed; the lead checked the pane and file before the next input, and did not resend.
+The helper now reads the visible pane once more after that timeout and reports exit 7
+`visible-changed` when the frame differs. Both 6 and 7 mean delivery is uncertain. That change
+is proven only by synthetic cases; it has not been rerun against a live consecutive-dialog
+sequence. See [`tests/live-claude-validation.md`](tests/live-claude-validation.md) and
+`SKILL.md`.
 
 ## Contributing
 
