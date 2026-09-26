@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.1.4
+
+- Accept colon-qualified Herdr pane IDs in retained-partner status inspection.
+- Report a changed visible approval dialog separately when `state_change_seq`
+  does not advance, without resending keys. Both changed-frame and timeout
+  results remain uncertain and require lead inspection.
+- Record the Codex-led Claude Code live validation, including the observed
+  state-root write in auto mode and the one-shot manual-mode approval path.
+  Disable approval reuse for the observed Claude configuration by lead rule;
+  the live Claude Bash layout still refuses approval extraction.
+- Refresh packaged installation examples to the verified published v0.1.3 tag.
+  The managed installer and retained-state formats are unchanged.
+
+The changed send helper has synthetic regression coverage but has not been rerun
+against a live consecutive-dialog sequence.
+
 ## 0.1.3
 
 - Preserve the active-run pointer when the documented manual approval-audit copy
