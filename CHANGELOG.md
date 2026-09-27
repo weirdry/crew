@@ -2,6 +2,8 @@
 
 ## 0.1.4
 
+- Capture the original worker pane ID in manual dialog handling and compare it
+  before interpreting later sequence changes; stop on replacement or refusal.
 - Align manual dialog handling with adapter delivery statuses and stop for user
   escalation when an uncertain send leaves the same dialog at the same sequence.
 - Isolate all helper Python entry points from workspace modules and Python

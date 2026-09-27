@@ -211,7 +211,12 @@ the kind and key exactly. Immediately re-read and compare that same typed key be
 `send-keys`; return to the blocked guard without sending if it changed.
 
 Without the answer helper, retain the blocked/visible-dialog guards and capture
-`dialog_text`, the pre-send frame, and `dialog_agent.state_change_seq` as `pre_key_seq`.
+`dialog_text`, the pre-send frame, `dialog_agent.pane_id` as `pre_key_pane_id`, and
+`dialog_agent.state_change_seq` as `pre_key_seq`. On every subsequent `agent get`,
+including uncertain-delivery inspection, compare `pane_id` with `pre_key_pane_id`
+before interpreting the sequence. A different pane ID or a bound-adapter refusal
+means a changed binding: escalate and stop the round without another key send.
+Missing pane identity is unavailable evidence and requires the same stop.
 Run `<crew-skill-dir>/scripts/herdr.sh agent send-keys <worker> <keys>` once and
 capture its exit status immediately:
 
