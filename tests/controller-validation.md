@@ -17,7 +17,7 @@ receipts were confirmed by read-only metadata inspection. No runtime receipt,
 active-run pointer, approval record, installed skill, or live worker was modified.
 
 The new producer writes controller-owned v2 receipts. Legacy receipts require an
-explicit matching live-partner handoff and preserve the original bytes in an
+explicit expected-owner handoff and preserve the original bytes in an
 immutable content-named archive. New receipts do not preserve a fabricated lead
 pane. Run, relay and approval formats are unchanged. See the
 [execution contract](../skills/crew/references/execution.md).
@@ -39,7 +39,7 @@ pane. Run, relay and approval formats are unchanged. See the
 
 ## Local evidence
 
-`sh tests/ci.sh` passed:
+The initial refactor's `sh tests/ci.sh` passed:
 
 | Suite | Passed |
 | --- | ---: |
@@ -55,12 +55,40 @@ PyYAML. Local links in the installed skill resolved. Tracked/staged diff whitesp
 checks passed; new source files were also inspected. Tests use synthetic data,
 stub Herdr and disposable directories. No actual agent is delegated work.
 
-Controller tests cover both supported native launch profiles, execution without
+Initial controller tests covered both supported native launch profiles, execution without
 lead-pane environment, workspace placement, reuse, exact worker identity, session
 collisions, explicit legacy handoff with byte preservation, refusal to recreate
 a missing worker during handoff, changed receipts, symlinks, concurrent operations,
 verified retirement, one-shot dialog routing, missing-receipt refusal, status,
 and artifact completion followed by retained-partner run finish.
+
+## Self-review follow-up
+
+September 28, 2026. Three findings against `7bfae1c` were reproduced with synthetic
+fixtures before correction: dialog replies could follow a changed receipt to a
+replacement worker; an explicit handoff could not recover a confirmed absent
+worker and pane; and a failed archive write could publish incomplete history and
+block retry. The controller suite demonstrated the defects before the fixes.
+
+Boundary classification: unreleased — corrected in place within the existing v2
+controller contract. No additional schema version or compatibility path was added.
+
+- Dialog calls pin the complete initial receipt. Both pre-command and post-command
+  checks reject changes, including replacement sequences observed after a send.
+  Typed approval extraction also rechecks the receipt before returning evidence.
+- Explicit handoff can start a replacement only after precise agent-not-found and
+  pane-not-found responses. A remaining pane or an unavailable query refuses it;
+  failed startup preserves the previous owner. Existing user authorization and
+  exact previous-owner requirements remain in force.
+- History is written and synced in a temporary file before atomic publication
+  without overwrite. Injected sync and receipt-replacement failures prove retry;
+  conflicting archives are preserved and refused.
+
+The final `sh tests/ci.sh` run passed 171 helper fixtures, 23 relay tests, 39
+controller tests, and 43 release tests: **276 total**, plus shell syntax and version
+policy. Complete diff and whitespace checks passed. Current-head hosted CI is
+reported separately in PR #13. This follow-up changed no installed skill, actual
+runtime state, or live agent.
 
 ## Evidence limits
 

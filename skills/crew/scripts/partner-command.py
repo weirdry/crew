@@ -6,7 +6,7 @@ from pathlib import Path
 import subprocess
 import sys
 
-from partner import Refused, read_receipt, verify, locked, unchanged
+from partner import Refused, read_receipt, verify, locked, unchanged, check_dialog_binding
 from herdr_transport import Herdr, TransportError
 
 
@@ -18,6 +18,7 @@ def main():
     root = Path(context['state_root'])
     with locked(root):
         receipt = read_receipt(root / 'worker.json')
+        check_dialog_binding(receipt)
         if not receipt or receipt['version'] != 2:
             raise Refused('controller-bound receipt required; legacy handoff is explicit')
         if receipt['controller_id'] != os.environ.get('CREW_CONTROLLER_ID'):
@@ -28,7 +29,9 @@ def main():
         verify(transport.agent(args[2]), receipt)
         unchanged(root / 'worker.json', receipt)
         # Keep output and command-specific semantics intact, including text and --wait.
-        return subprocess.run(transport.prefix + args).returncode
+        result = subprocess.run(transport.prefix + args)
+        unchanged(root / 'worker.json', receipt)
+        return result.returncode
 
 
 if __name__ == '__main__':

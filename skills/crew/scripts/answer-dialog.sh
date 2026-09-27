@@ -98,9 +98,11 @@ refuse() {
 script_dir=${0%/*}
 [ "$script_dir" != "$0" ] || script_dir=.
 state_json=$("$script_dir/state-root.sh") || exit 4
-transport_mode=$(python3 - "$state_json" <<'PYMODE'
+transport_binding=$(python3 -B - "$state_json" "$script_dir" <<'PYMODE'
 import json, os, sys
 from pathlib import Path
+sys.path.insert(0, sys.argv[2])
+from partner import receipt_digest, validate_receipt
 path = Path(json.loads(sys.argv[1])["state_root"]) / "worker.json"
 if os.path.lexists(path):
     if path.is_symlink() or not path.is_file():
@@ -110,15 +112,23 @@ if os.path.lexists(path):
         raise SystemExit("invalid partner receipt")
     if os.environ.get("CREW_CONTROLLER_ID") and receipt["version"] != 2:
         raise SystemExit("controller-bound receipt required")
-    print("bound" if receipt["version"] == 2 else "legacy")
+    if receipt["version"] == 2:
+        validate_receipt(receipt)
+        print(receipt_digest(receipt))
+    else:
+        print("legacy")
 else:
     if os.environ.get("CREW_CONTROLLER_ID"):
         raise SystemExit("controller-bound receipt required")
     print("legacy")
 PYMODE
 ) || exit 4
+if [ "$transport_binding" != legacy ]; then
+  CREW_DIALOG_RECEIPT_SHA256=$transport_binding
+  export CREW_DIALOG_RECEIPT_SHA256
+fi
 herdr() {
-  if [ "$transport_mode" = bound ]; then
+  if [ "$transport_binding" != legacy ]; then
     "$script_dir/herdr.sh" "$@"
   else
     command herdr "$@"

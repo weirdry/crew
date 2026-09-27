@@ -25,10 +25,16 @@
   lead pane. Create visible partner workspaces/tabs without inferring UI focus;
   preserve native worker launch restrictions and exact worker identity checks.
 - Introduce controller-owned v2 partner receipts because published v1 receipts
-  exist. Require explicit live-partner handoff, archive the exact prior receipt,
+  exist. Require explicit handoff, archive the exact prior receipt,
   and leave run/relay/approval formats unchanged. No automatic state migration.
 - Route prompts, dialog replies, approvals and status through the recorded
   session. Refuse competing controllers and serialize partner mutations.
+- Pin dialog replies to the initial complete partner receipt through approval
+  checks and key delivery, refusing a replacement worker even under the same owner.
+- Allow explicit owner handoff to restart a worker only when both the recorded
+  agent and pane are confirmed absent; retain the old owner on failed startup.
+- Publish complete handoff archives atomically without overwrite so an interrupted
+  write does not leave a partial final archive that prevents retry.
 - Refresh packaged installation examples to the verified published v0.1.3 tag.
   The managed installer is unchanged.
 

@@ -81,6 +81,17 @@ def unchanged(path, expected):
         raise Refused('partner receipt changed; no further action taken')
 
 
+def receipt_digest(receipt):
+    return hashlib.sha256(json.dumps(receipt, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
+
+
+def check_dialog_binding(receipt):
+    # A dialog pins one complete receipt across separate adapter invocations.
+    expected = os.environ.get('CREW_DIALOG_RECEIPT_SHA256')
+    if expected is not None and receipt_digest(receipt) != expected:
+        raise Refused('partner receipt changed during dialog; no further action taken')
+
+
 def save(path, expected, value):
     unchanged(path, expected)
     if expected == value:
@@ -89,14 +100,19 @@ def save(path, expected, value):
         # Retain the exact old bytes on explicit handoff/stale replacement, once per content.
         old = regular(path)
         archive = path.parent / ('worker-' + hashlib.sha256(old).hexdigest() + '.json')
+        fd, temporary = tempfile.mkstemp(prefix='.worker-history-', dir=path.parent)
         try:
-            with archive.open('xb') as handle:
+            with os.fdopen(fd, 'wb') as handle:
                 handle.write(old)
                 handle.flush()
                 os.fsync(handle.fileno())
-        except FileExistsError:
-            if regular(archive) != old:
-                raise Refused('conflicting partner history')
+            try:
+                os.link(temporary, archive)
+            except FileExistsError:
+                if regular(archive) != old:
+                    raise Refused('conflicting partner history')
+        finally:
+            os.unlink(temporary)
     fd, temporary = tempfile.mkstemp(prefix='.worker-', dir=path.parent)
     try:
         with os.fdopen(fd, 'w') as handle:
@@ -171,13 +187,13 @@ def operate(args, root, cwd, name):
             verify(agent, receipt)
             if args.create:
                 raise Refused('partner-live', 13)
-        elif args.handoff_from:
-            raise Refused('handoff requires a verified live partner; old receipt preserved', 11)
         pane = receipt['worker_pane_id'] if receipt else None
         created = False
         if agent is None:
             if pane and transport.pane(pane) is None:
                 pane = None
+            if pane and args.handoff_from:
+                raise Refused('handoff requires a matching live partner or confirmed absent agent and pane', 11)
             if pane is None:
                 pane = transport.create(cwd, name, args.workspace)
                 created = True

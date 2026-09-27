@@ -1,4 +1,6 @@
 """Synthetic vertical tests of controller-bound Herdr partner lifecycle."""
+import base64
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -6,8 +8,11 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
 SCRIPTS = Path(sys.argv.pop()).resolve() if len(sys.argv) > 1 and Path(sys.argv[-1]).is_dir() else Path(__file__).resolve().parents[1] / 'skills/crew/scripts'
+sys.path.insert(0, str(SCRIPTS))
+import partner
 
 
 class PartnerTests(unittest.TestCase):
@@ -169,11 +174,75 @@ class PartnerTests(unittest.TestCase):
         self.assertEqual(archives[0].read_bytes(),before)
         self.assertEqual(self.pointer.read_text(),'run-1\n')
 
-    def test_handoff_cannot_create_a_replacement(self):
+    def test_handoff_recovers_absent_worker_and_pane_preserving_history(self):
+        self.store(self.receipt|{'controller_id':'old'}); before=self.path.read_bytes()
+        self.launch()
+        self.add(['pane','get','w1:p2'], {'error':'pane_not_found'})
+        self.success(self.start('--handoff-from','old'))
+        self.assertEqual(json.loads(self.path.read_text()),self.receipt)
+        self.assertEqual([p.read_bytes() for p in self.root.glob('worker-*.json')],[before])
+        self.assertEqual(self.pointer.read_text(),'run-1\n')
+        self.assertFalse(any('close' in call for call in self.calls()))
+
+    def test_handoff_refuses_absent_worker_with_existing_pane(self):
         self.store(self.receipt|{'controller_id':'old'}); before=self.path.read_bytes()
         self.add(['agent','get',self.name], {'error':'agent_not_found'})
+        self.add(['pane','get','w1:p2'], {'pane':{'pane_id':'w1:p2'}})
+        self.refused_unchanged(self.start('--handoff-from','old'),before)
+        self.assertEqual(len(self.calls()),2)
+
+    def test_handoff_refuses_unavailable_pane_query(self):
+        self.store(self.receipt|{'controller_id':'old'}); before=self.path.read_bytes()
+        self.add(['agent','get',self.name], {'error':'agent_not_found'})
+        self.add(['pane','get','w1:p2'], {'error':'timeout'})
+        self.refused_unchanged(self.start('--handoff-from','old'),before)
+        self.assertEqual(len(self.calls()),2)
+
+    def test_handoff_refuses_unavailable_agent_query(self):
+        self.store(self.receipt|{'controller_id':'old'}); before=self.path.read_bytes()
+        self.add(['agent','get',self.name], {'error':'timeout'})
         self.refused_unchanged(self.start('--handoff-from','old'),before)
         self.assertEqual(len(self.calls()),1)
+
+    def test_failed_recovery_preserves_previous_owner(self):
+        self.store(self.receipt|{'controller_id':'old'}); before=self.path.read_bytes()
+        self.launch(fail_marker=True)
+        self.add(['pane','get','w1:p2'], {'error':'pane_not_found'})
+        self.add(['pane','close','w1:p2'], {'stdout_json':{'result':{}}})
+        self.refused_unchanged(self.start('--handoff-from','old'),before)
+        self.assertEqual(self.calls()[-1],['--session','work','pane','close','w1:p2'])
+
+    def test_interrupted_history_write_can_retry_without_partial_archive(self):
+        self.store(); before=self.path.read_bytes()
+        replacement=self.receipt|{'controller_id':'next'}
+        with patch.object(partner.os,'fsync',side_effect=OSError('injected write failure')):
+            with self.assertRaises(OSError):
+                partner.save(self.path,self.receipt,replacement)
+        self.assertEqual(self.path.read_bytes(),before)
+        self.assertEqual(list(self.root.glob('worker-*.json')),[])
+        partner.save(self.path,self.receipt,replacement)
+        self.assertEqual(json.loads(self.path.read_text()),replacement)
+        self.assertEqual([p.read_bytes() for p in self.root.glob('worker-*.json')],[before])
+
+    def test_history_publication_survives_failed_receipt_replace_and_retry(self):
+        self.store(); before=self.path.read_bytes()
+        replacement=self.receipt|{'controller_id':'next'}
+        with patch.object(partner.os,'replace',side_effect=OSError('injected replace failure')):
+            with self.assertRaises(OSError):
+                partner.save(self.path,self.receipt,replacement)
+        self.assertEqual(self.path.read_bytes(),before)
+        partner.save(self.path,self.receipt,replacement)
+        self.assertEqual(json.loads(self.path.read_text()),replacement)
+        self.assertEqual([p.read_bytes() for p in self.root.glob('worker-*.json')],[before])
+
+    def test_conflicting_history_is_preserved_and_refused(self):
+        self.store(); before=self.path.read_bytes()
+        archive=self.root/('worker-'+hashlib.sha256(before).hexdigest()+'.json')
+        archive.write_bytes(b'conflict')
+        with self.assertRaisesRegex(partner.Refused,'conflicting partner history'):
+            partner.save(self.path,self.receipt,self.receipt|{'controller_id':'next'})
+        self.assertEqual(self.path.read_bytes(),before)
+        self.assertEqual(archive.read_bytes(),b'conflict')
 
     def test_v2_handoff_requires_exact_old_owner(self):
         self.store(self.receipt|{'controller_id':'old'}); before=self.path.read_bytes()
@@ -247,6 +316,91 @@ class PartnerTests(unittest.TestCase):
         result=self.run_helper('answer-dialog.sh',[self.name,'1'])
         self.assertNotEqual(result.returncode,0)
         self.assertEqual(self.calls(),[])
+
+    def test_typed_dialog_does_not_send_to_replacement_after_final_guard(self):
+        self.store()
+        blocked=self.live|{'agent_status':'blocked','state_change_seq':10}
+        replacement=blocked|{'pane_id':'w1:p3','state_change_seq':20}
+        advanced=replacement|{'agent_status':'working','state_change_seq':21}
+        effect={'action':'write','path':str(self.path),
+                'content_json':self.receipt|{'worker_pane_id':'w1:p3'}}
+        self.add(['agent','get',self.name], *[{'agent':blocked} for _ in range(5)],
+                 {'agent':blocked,'effects':[effect]}, {'agent':replacement},
+                 {'agent':advanced}, {'agent':advanced})
+        frame='Would you like to run the following command?\n\n$ echo one\n\n› 1. Yes\n  2. No\n'
+        for lines in ('120','200'):
+            self.add(['agent','read',self.name,'--source','visible','--lines',lines,'--format','text'],
+                     {'stdout':frame})
+        self.add(['agent','send-keys',self.name,'1'], {'stdout':'accepted\n'})
+        token=base64.b64encode(json.dumps({'kind':'command','key':'echo one'}).encode()).decode()
+        result=self.run_helper('answer-dialog.sh',['--expected-command-b64',token,self.name,'1'])
+        self.assertNotEqual(result.returncode,0,result.stdout+result.stderr)
+        self.assertIn('partner receipt changed',result.stderr)
+        self.assertFalse(any('send-keys' in call for call in self.calls()))
+
+    def test_typed_dialog_sends_once_when_binding_is_unchanged(self):
+        self.store()
+        blocked=self.live|{'agent_status':'blocked','state_change_seq':10}
+        advanced=blocked|{'agent_status':'working','state_change_seq':11}
+        self.add(['agent','get',self.name], *[{'agent':blocked} for _ in range(7)],
+                 {'agent':advanced}, {'agent':advanced})
+        frame='Would you like to run the following command?\n\n$ echo one\n\n› 1. Yes\n  2. No\n'
+        for lines in ('120','200'):
+            self.add(['agent','read',self.name,'--source','visible','--lines',lines,'--format','text'],
+                     {'stdout':frame})
+        self.add(['agent','send-keys',self.name,'1'], {'stdout':'accepted\n'})
+        token=base64.b64encode(json.dumps({'kind':'command','key':'echo one'}).encode()).decode()
+        result=self.run_helper('answer-dialog.sh',['--expected-command-b64',token,self.name,'1'])
+        self.success(result)
+        self.assertIn('outcome=expected-match',result.stdout)
+        self.assertEqual(sum('send-keys' in call for call in self.calls()),1)
+
+    def test_approval_rejects_receipt_changed_during_extraction(self):
+        self.store()
+        blocked=self.live|{'agent_status':'blocked','state_change_seq':10}
+        self.add(['agent','get',self.name], {'agent':blocked})
+        self.add(['agent','read',self.name,'--source','visible','--lines','200','--format','text'],
+                 {'stdout':'Would you like to run the following command?\n\n$ echo one\n\n› 1. Yes\n  2. No\n',
+                  'effects':[{'action':'write','path':str(self.path),
+                              'content_json':self.receipt|{'worker_pane_id':'w1:p3'}}]})
+        token=base64.b64encode(json.dumps({'kind':'command','key':'echo one'}).encode()).decode()
+        result=self.run_helper('approval.sh',['check',self.name,'--expect-b64',token])
+        self.assertNotEqual(result.returncode,0,result.stdout+result.stderr)
+        self.assertIn('partner receipt changed',result.stderr)
+        self.assertNotIn('outcome=expected-match',result.stdout)
+
+    def test_dialog_does_not_accept_replacement_sequence_as_delivery_evidence(self):
+        self.store()
+        blocked=self.live|{'agent_status':'blocked','state_change_seq':10}
+        replacement=blocked|{'pane_id':'w1:p3','agent_status':'working','state_change_seq':21}
+        self.add(['agent','get',self.name], *[{'agent':blocked} for _ in range(7)],
+                 {'agent':replacement,'effects':[{'action':'write','path':str(self.path),
+                     'content_json':self.receipt|{'worker_pane_id':'w1:p3'}}]})
+        self.add(['agent','read',self.name,'--source','visible','--lines','120','--format','text'],
+                 {'stdout':'Would you like to continue?\n1. Yes\n2. No\n'})
+        self.add(['agent','send-keys',self.name,'1'], {'stdout':'accepted\n'})
+        result=self.run_helper('answer-dialog.sh',[self.name,'1'])
+        self.assertEqual(result.returncode,6,result.stdout+result.stderr)
+        self.assertNotIn('outcome=advanced',result.stdout)
+        self.assertEqual(sum('send-keys' in call for call in self.calls()),1)
+
+    def test_dialog_does_not_follow_receipt_changed_during_visible_read(self):
+        self.store()
+        blocked=self.live|{'agent_status':'blocked','state_change_seq':10}
+        replacement=blocked|{'pane_id':'w1:p3'}
+        advanced=replacement|{'agent_status':'working','state_change_seq':11}
+        self.add(['agent','get',self.name], *[{'agent':blocked} for _ in range(3)],
+                 *[{'agent':replacement} for _ in range(3)],
+                 {'agent':advanced}, {'agent':advanced})
+        self.add(['agent','read',self.name,'--source','visible','--lines','120','--format','text'],
+                 {'stdout':'Would you like to continue?\n1. Yes\n2. No\n','effects':[
+                     {'action':'write','path':str(self.path),
+                      'content_json':self.receipt|{'worker_pane_id':'w1:p3'}}]})
+        self.add(['agent','send-keys',self.name,'1'], {'stdout':'accepted\n'})
+        result=self.run_helper('answer-dialog.sh',[self.name,'1'])
+        self.assertNotEqual(result.returncode,0,result.stdout+result.stderr)
+        self.assertIn('partner receipt changed',result.stderr)
+        self.assertFalse(any('send-keys' in call for call in self.calls()))
 
     def test_bound_prompt_refuses_receipt_changed_during_identity_check(self):
         self.store()
