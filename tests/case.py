@@ -207,6 +207,8 @@ def run_case(scripts_dir: Path, case_path: Path) -> str:
             raise CaseFailure(f"script is absent: {script}")
 
         environment = os.environ.copy()
+        environment.pop("CODEX_THREAD_ID", None)
+        environment.pop("CODEX_SESSION_ID", None)
         environment["CREW_STATE_DIR"] = str(state.parent)
         environment.update(case.get("env", {}))
         environment["PATH"] = str(Path(__file__).parent / "bin") + os.pathsep + environment.get("PATH", "")

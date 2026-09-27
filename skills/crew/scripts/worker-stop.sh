@@ -2,7 +2,7 @@
 # Exit statuses:
 #   0  The recorded partner pane was verified and closed, and its receipt was removed.
 #   2  Unexpected arguments.
-#   3  The command is not running inside its recorded lead pane.
+#   3  The selected lead pane does not match the recorded lead, or no reliable selection was supplied.
 #   4  The workspace partner ownership receipt is absent or invalid.
 #   5  The recorded partner resolves to a different live pane or is not live.
 #   6  The receipt names the caller or lead as the worker pane; close refused.
@@ -12,15 +12,50 @@
 
 set -u
 
+lead_pane_id=
+explicit_lead_pane=no
+herdr_session=
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --lead-pane)
+      if [ -n "$lead_pane_id" ] || [ "$#" -lt 2 ] || [ -z "$2" ]; then break; fi
+      lead_pane_id=$2
+      explicit_lead_pane=yes
+      shift 2
+      ;;
+    --session)
+      if [ -n "$herdr_session" ] || [ "$#" -lt 2 ] || [ -z "$2" ]; then break; fi
+      herdr_session=$2
+      shift 2
+      ;;
+    *) break ;;
+  esac
+done
 if [ "$#" -ne 0 ]; then
-  printf '%s\n' 'usage: worker-stop.sh' >&2
+  printf '%s\n' 'usage: worker-stop.sh [--lead-pane ID] [--session NAME]' >&2
   exit 2
 fi
 
-if [ "${HERDR_ENV:-}" != 1 ] || [ -z "${HERDR_PANE_ID:-}" ]; then
+if [ "$explicit_lead_pane" != yes ] &&
+   { [ -n "${CODEX_THREAD_ID:-}" ] || [ -n "${CODEX_SESSION_ID:-}" ]; }; then
+  printf '%s\n' 'worker-stop.sh: Codex command runner requires --lead-pane; inherited Herdr variables are not a reliable pane binding' >&2
+  exit 3
+fi
+if [ -z "$lead_pane_id" ] && [ "${HERDR_ENV:-}" = 1 ]; then
+  lead_pane_id=${HERDR_PANE_ID:-}
+fi
+if [ -z "$lead_pane_id" ]; then
   printf '%s\n' 'worker-stop.sh: Herdr pane context unavailable to this command' >&2
   exit 3
 fi
+
+herdr() {
+  if [ -n "$herdr_session" ]; then
+    command herdr --session "$herdr_session" "$@"
+  else
+    command herdr "$@"
+  fi
+}
 
 script_dir=${0%/*}
 if [ "$script_dir" = "$0" ]; then
@@ -55,21 +90,21 @@ print(json.loads(sys.argv[1])[sys.argv[2]])
 ' "$receipt_json" "$1"
 }
 
-lead_pane_id=$(receipt_field lead_pane_id) || exit 4
+recorded_lead_pane_id=$(receipt_field lead_pane_id) || exit 4
 worker_pane_id=$(receipt_field worker_pane_id) || exit 4
 worker_name=$(receipt_field worker_name) || exit 4
 worker_kind=$(receipt_field worker_kind) || exit 4
 receipt_path=$(receipt_field receipt_path) || exit 4
 
-if [ "$HERDR_PANE_ID" != "$lead_pane_id" ]; then
-  printf 'caller_pane_id=%s\n' "$HERDR_PANE_ID"
-  printf 'recorded_lead_pane_id=%s\n' "$lead_pane_id"
+if [ "$lead_pane_id" != "$recorded_lead_pane_id" ]; then
+  printf 'caller_pane_id=%s\n' "$lead_pane_id"
+  printf 'recorded_lead_pane_id=%s\n' "$recorded_lead_pane_id"
   printf '%s\n' 'outcome=refused:not-recorded-lead'
   exit 3
 fi
 
-if [ "$worker_pane_id" = "$HERDR_PANE_ID" ] || [ "$worker_pane_id" = "$lead_pane_id" ]; then
-  printf 'caller_pane_id=%s\n' "$HERDR_PANE_ID"
+if [ "$worker_pane_id" = "$lead_pane_id" ] || [ "$worker_pane_id" = "$recorded_lead_pane_id" ]; then
+  printf 'caller_pane_id=%s\n' "$lead_pane_id"
   printf 'recorded_worker_pane_id=%s\n' "$worker_pane_id"
   printf '%s\n' 'outcome=refused:caller-or-lead-target'
   exit 6

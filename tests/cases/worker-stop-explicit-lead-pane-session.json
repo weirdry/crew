@@ -1,0 +1,17 @@
+{
+  "id": "worker-stop-explicit-lead-pane-session",
+  "script": "worker-stop.sh",
+  "args": ["--lead-pane", "lead-1", "--session", "test-session"],
+  "env": {"HERDR_ENV": "0", "HERDR_PANE_ID": "wrong-pane", "CODEX_THREAD_ID": "synthetic-codex-thread"},
+  "setup": {"files": {"{state}/worker.json": {"json": {"version": 1, "lead_pane_id": "lead-1", "worker_pane_id": "worker-1", "worker_name": "crew-worker", "worker_kind": "codex"}}}},
+  "herdr": [
+    {"argv": ["--session", "test-session", "agent", "get", "crew-worker"], "results": [{"agent": {"pane_id": "worker-1", "agent": "codex"}}, {"agent": {"pane_id": "worker-1", "agent": "codex"}}]},
+    {"argv": ["--session", "test-session", "pane", "close", "worker-1"], "results": [{}]}
+  ],
+  "expect": {
+    "status": 0,
+    "stdout_contains": ["closed_pane_id=worker-1", "worker_name=crew-worker"],
+    "calls_exact": [["--session", "test-session", "agent", "get", "crew-worker"], ["--session", "test-session", "agent", "get", "crew-worker"], ["--session", "test-session", "pane", "close", "worker-1"]],
+    "absent": ["{state}/worker.json"]
+  }
+}

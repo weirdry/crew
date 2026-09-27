@@ -27,3 +27,10 @@ daemon may also retain another client's terminal variables, so the presence of
 [openai/codex#44902](https://github.com/openai/codex/issues/44902) and
 [openai/codex#48500](https://github.com/openai/codex/issues/48500) concern
 hooks; they do not resolve this shell-tool path.
+
+Herdr's [Codex SessionStart hook](https://github.com/herdrdev/herdr/blob/fff6c820aa45f4eabb9b2e0456326dc74cca5a25/src/integration/assets/codex/herdr-agent-state.sh)
+also obtains its target `pane_id` from `HERDR_PANE_ID`. Its reported native
+session ID cannot independently recover the originating pane when that variable
+is absent or inherited from a different client. Crew therefore accepts an
+explicitly selected lead pane ID for this case; the helper validates the live
+Herdr agent and keeps the selected ID in the partner ownership receipt.
