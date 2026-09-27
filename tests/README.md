@@ -41,7 +41,7 @@ needed.
 The suite covers `worker-start.sh`, `worker-stop.sh`, `answer-dialog.sh`, `approval.sh`,
 `run-finish.sh`, `artifact-done.sh`, and `status.sh`. The `run-init.sh` cases exercise rejected
 state roots; its successful initialization and Git wiring are not covered by this suite.
-Worker-start fixtures assert the native Codex workspace-write and Claude auto sandbox launch
+Controller lifecycle tests assert the native Codex workspace-write and Claude auto sandbox launch
 arguments, including the canonical state-root path in Claude's Bash and file-tool deny rules.
 They do not prove that the installed agents enforce those settings; that requires a live probe.
 The [validation note](live-claude-validation.md) records separate direct Claude CLI smoke
@@ -55,6 +55,28 @@ The `answer-dialog.sh` cases assert one key send followed by a final visible rea
 `state_change_seq` does not advance. An unchanged frame returns exit 6; a changed frame returns
 exit 7. Both outcomes remain uncertain. Exit 7 has synthetic coverage only; the fixed helper
 has not been rerun against a live consecutive-dialog sequence.
+
+## Controller lifecycle coverage
+
+See [the refactor validation record](controller-validation.md) for actual outcomes
+and the boundary between synthetic checks and live acceptance.
+
+`test_partner.py` replaces the old worker-start/stop pane-ownership fixtures.
+It exercises the final ownership contract through the real entry points and the
+strict Herdr stub: no lead environment, explicit session/placement, exact live
+identity, retained reuse, conflicting controllers, same-kind refusal, uncertain
+startup cleanup, receipt changes, symlinks, verified retirement, bound prompts,
+and read-only status. Legacy receipt handoff preserves the exact prior bytes and
+requires an explicit expected owner; an absent worker cannot be silently recreated
+during handoff. Native launch arguments remain synthetic evidence only.
+
+```sh
+python3 -B tests/test_partner.py
+```
+
+Both generations of approval records remain covered. New controller receipt cases
+exercise session routing and reject a wrong controller before reading or sending.
+The old pane identity itself is no longer a prerequisite to collaboration.
 
 ## Status inspection coverage
 
@@ -85,7 +107,7 @@ The same entry point also runs `tests/relay.py`: 23 standard-library unittest ca
 that invoke the actual relay helper through sequential synthetic exchanges.
 It uses isolated workspaces and external state under /var/tmp, including the
 real state-root validator. A Herdr stub with no permitted calls catches any
-unexpected agent control. The scripts-directory argument applies to both suites,
+unexpected agent control. The scripts-directory argument applies to all helper suites,
 so mutation checks can still target an isolated helper copy.
 
 Coverage includes publication and response provenance, incremental and fresh
@@ -112,8 +134,7 @@ real-world fact, or that live Herdr delivered the prompt.
 
 ## Release and installation coverage
 
-`sh tests/ci.sh` runs shell syntax checks, the 203 helper fixture cases and 23
-relay tests, the standard-library release suite, and version policy against
+`sh tests/ci.sh` runs shell syntax checks, the helper fixture cases, 23 relay tests, and controller lifecycle tests, the standard-library release suite, and version policy against
 `origin/main`. Python 3.11+ is required. Run the focused release suite with:
 
 ```sh

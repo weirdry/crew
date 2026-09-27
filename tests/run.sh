@@ -43,4 +43,8 @@ if ! python3 -B "$tests_dir/relay.py" "$scripts_dir"; then
   status=1
 fi
 
+if ! python3 -B "$tests_dir/test_partner.py" "$scripts_dir"; then
+  status=1
+fi
+
 exit "$status"

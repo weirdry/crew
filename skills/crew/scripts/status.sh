@@ -21,7 +21,7 @@ esac
 script_dir=${0%/*}
 [ "$script_dir" != "$0" ] || script_dir=.
 
-python3 - "$script_dir" "${1-}" <<'PY'
+python3 -B - "$script_dir" "${1-}" <<'PY'
 from __future__ import annotations
 
 import json
@@ -33,12 +33,14 @@ import sys
 
 
 helpers = Path(sys.argv[1]).resolve()
+sys.path.insert(0, str(helpers))
+from partner import validate_receipt, Refused
 snapshot = {
     "workspace": None,
     "state_root": None,
     "run": {"availability": "unavailable", "id": None, "phase": None, "round": None},
     "partner": {"record": "unavailable", "name": None, "kind": None, "pane_id": None,
-                "lead_pane_id": None, "observation": "not-queried", "agent_status": None},
+                "lead_pane_id": None, "controller_id": None, "session": None, "observation": "not-queried", "agent_status": None},
     "artifacts": {"latest_report": None, "latest_completed_report": None, "latest_review": None},
     "attention": [],
 }
@@ -193,15 +195,23 @@ def read_partner(state_root: Path, state_lines: list[str]) -> None:
         return
     try:
         receipt = json.loads(text) if availability == "present" else None
+        if isinstance(receipt, dict) and receipt.get("version") == 2:
+            validate_receipt(receipt)
         identity = (("worker_name", r"[A-Za-z0-9_-]+"), ("worker_kind", r"[A-Za-z0-9_-]+"),
-                    ("worker_pane_id", PANE_ID), ("lead_pane_id", PANE_ID))
-        valid = (isinstance(receipt, dict) and receipt.get("version") == 1
+                    ("worker_pane_id", PANE_ID))
+        if isinstance(receipt, dict) and receipt.get("version") == 1:
+            identity += (("lead_pane_id", PANE_ID),)
+        else:
+            identity += (("controller_id", r"[A-Za-z0-9][A-Za-z0-9._:-]{0,127}"),
+                         ("session", r"[A-Za-z0-9][A-Za-z0-9._:-]{0,127}"),
+                         ("lead_kind", r"codex|claude"))
+        valid = (isinstance(receipt, dict) and receipt.get("version") in (1, 2)
                  and all(
                      isinstance(receipt.get(key), str)
                      and re.fullmatch(pattern, receipt[key]) for key, pattern in identity
                  )
                  and re.fullmatch(r"[a-z][a-z0-9_-]{0,31}", receipt["worker_name"]))
-    except (ValueError, TypeError):
+    except (ValueError, TypeError, Refused):
         valid = False
     if not valid:
         partner["record"] = "unavailable"
@@ -212,7 +222,8 @@ def read_partner(state_root: Path, state_lines: list[str]) -> None:
         )
         return
     partner.update({"name": receipt["worker_name"], "kind": receipt["worker_kind"],
-                    "pane_id": receipt["worker_pane_id"], "lead_pane_id": receipt["lead_pane_id"]})
+                    "pane_id": receipt["worker_pane_id"], "lead_pane_id": receipt.get("lead_pane_id"),
+                    "controller_id": receipt.get("controller_id"), "session": receipt.get("session")})
     for label, key, pattern in (
         ("Worker", "name", r"[A-Za-z0-9_-]+"), ("Pane", "pane_id", PANE_ID),
     ):
@@ -226,7 +237,8 @@ def read_partner(state_root: Path, state_lines: list[str]) -> None:
     partner["observation"] = "unavailable"
     try:
         result = subprocess.run(
-            ["herdr", "agent", "get", partner["name"]],
+            ["herdr"] + (["--session", partner["session"]] if partner["session"] else [])
+            + ["agent", "get", partner["name"]],
             capture_output=True, text=True, timeout=5,
         )
         if result.returncode:
@@ -421,7 +433,11 @@ else:
         f"Partner record: {partner['record']}; {shown(partner['name'])} "
         f"({shown(partner['kind'])}), pane {shown(partner['pane_id'])}"
     )
-    print("Recorded lead pane:", shown(partner["lead_pane_id"]))
+    if partner["controller_id"] is not None:
+        print("Recorded controller:", partner["controller_id"])
+        print("Herdr session:", partner["session"])
+    else:
+        print("Recorded lead pane:", shown(partner["lead_pane_id"]))
     print(
         f"Live observation: {partner['observation']}; "
         f"agent status {shown(partner['agent_status'])}"

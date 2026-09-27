@@ -1,0 +1,42 @@
+{
+  "id": "approval-controller-mismatch",
+  "script": "approval.sh",
+  "args": [
+    "record",
+    "crew-worker"
+  ],
+  "command": "{\"key\":\"echo one\",\"kind\":\"command\"}",
+  "setup": {
+    "dirs": [
+      ".crew/run-1"
+    ],
+    "files": {
+      "{state}/.current": "run-1\n",
+      "{state}/worker.json": {
+        "json": {
+          "version": 2,
+          "worker_pane_id": "worker-1",
+          "worker_name": "crew-worker",
+          "worker_kind": "codex",
+          "controller_id": "lead-session",
+          "lead_kind": "claude",
+          "session": "work"
+        }
+      }
+    }
+  },
+  "herdr": [],
+  "expect": {
+    "status": 3,
+    "stderr_contains": [
+      "not the recorded controller"
+    ],
+    "calls_exact": [],
+    "absent": [
+      "{state}/run-1/approvals.jsonl"
+    ]
+  },
+  "env": {
+    "CREW_CONTROLLER_ID": "another"
+  }
+}

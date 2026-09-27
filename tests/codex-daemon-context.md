@@ -36,3 +36,12 @@ that variable is absent or inherited from a different client. Herdr's
 the caller's pane ID, while an omitted target can select the focused pane.
 Neither route provides a reliable binding for the observed daemon-owned
 conversation. No live Herdr control was attempted from that command runner.
+
+## Controller architecture resolution
+
+The observed environment loss remains historical evidence; the new Crew path does
+not attempt to reconstruct the lead pane. `tests/test_partner.py` launches through
+synthetic Herdr with all lead pane environment removed, binds ownership to an
+explicit controller and session, and tests attach/handoff/retirement. This proves
+the helper protocol locally, not actual daemon-backed Herdr delivery. No live
+worker or retained user state was changed as part of this refactor.
