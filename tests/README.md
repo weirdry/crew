@@ -68,7 +68,11 @@ identity, retained reuse, conflicting controllers, same-kind refusal, uncertain
 startup cleanup, receipt changes, symlinks, verified retirement, bound prompts,
 and read-only status. Legacy receipt handoff preserves the exact prior bytes and
 requires an explicit expected owner; an absent worker cannot be silently recreated
-during handoff. Native launch arguments remain synthetic evidence only.
+during handoff. Explicit handoff can recover only after both agent and pane are
+confirmed absent; remaining panes and unavailable queries refuse recovery. Failed
+startup retains the prior owner. History-write and receipt-replacement fault
+injection verifies retry with exact original bytes and conflict preservation.
+Native launch arguments remain synthetic evidence only.
 
 ```sh
 python3 -B tests/test_partner.py
@@ -76,6 +80,9 @@ python3 -B tests/test_partner.py
 
 Both generations of approval records remain covered. New controller receipt cases
 exercise session routing and reject a wrong controller before reading or sending.
+Dialog tests replace the receipt during visible reads and after the final typed
+approval guard, asserting that no key reaches the replacement. An unchanged typed
+approval still sends exactly once. Approval extraction also rejects receipt changes.
 The old pane identity itself is no longer a prerequisite to collaboration.
 
 ## Status inspection coverage

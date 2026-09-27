@@ -45,6 +45,12 @@ command. Use it for supervision as well as prompts. `answer-dialog.sh` and
 `approval.sh` route controller receipts to that same explicit session. Status
 inspection is read-only and does not require ownership.
 
+For controller receipts, `answer-dialog.sh` pins the complete initial receipt
+through approval extraction, the final guard, the one-shot key send, and result
+observation. A changed receipt refuses further commands even when the controller
+and worker name are unchanged. A sequence from a replacement worker is not
+accepted as delivery evidence for the original dialog.
+
 `worker-start.sh`/`worker-stop.sh` return 0 on success, 2 for arguments, 3 for an
 invalid run/root or retirement binding, 4 for missing retirement receipt, 10 for
 unavailable/invalid state or transport, 11 for owner/session/lock/handoff refusal,
@@ -78,12 +84,19 @@ old lead, start with its exact owner:
   --handoff-from "pane:<recorded-lead-pane-id>" claude
 ```
 
-For another v2 controller, pass its exact `controller_id` instead. Handoff only
-attaches a matching **live** partner; it neither creates a replacement nor changes
-its permissions. v2 handoff cannot change the recorded Herdr session. v1 did not
+For another v2 controller, pass its exact `controller_id` instead. Handoff attaches
+a matching **live** partner without changing its permissions. If both the recorded
+agent and pane are confirmed absent, the same explicit start/handoff starts a new
+partner with the native launch profile. A remaining pane without a matching agent,
+an identity mismatch, or an unavailable query refuses recovery. The new receipt is
+published only after successful startup; failure retains the previous owner.
+v2 handoff cannot change the recorded Herdr session. v1 did not
 record a session, so the user's session selection is part of that handoff decision.
 The exact old receipt bytes are preserved as `worker-<sha256>.json` before atomic
-replacement. Refusal leaves the original receipt and all run records intact.
+replacement. Each archive is fully written and synced before atomic publication
+without overwrite. An interrupted write can be retried; an existing conflicting
+archive is preserved and refused. Refusal leaves the original receipt and all run
+records intact.
 These archives are historical evidence, not alternate readers or authority.
 
 This is a bounded one-way transition. Once a workspace uses v2, no v1 writes or

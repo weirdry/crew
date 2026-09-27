@@ -539,9 +539,10 @@ if os.environ.get("CREW_CONTROLLER_ID") and receipt["version"] != 2:
     fail("controller-bound receipt required", 3)
 if receipt["version"] == 2:
     sys.path.insert(0, os.environ["CREW_HELPERS_DIR"])
-    from partner import validate_receipt, Refused
+    from partner import validate_receipt, Refused, check_dialog_binding, unchanged
     try:
         validate_receipt(receipt)
+        check_dialog_binding(receipt)
     except Refused as error:
         fail(str(error), 3)
     if (receipt.get("controller_id") != os.environ.get("CREW_CONTROLLER_ID")
@@ -581,6 +582,12 @@ except (OSError, UnicodeError) as error:
     fail(f"cannot read visible frame: {error}", 4)
 if read_result.returncode != 0:
     fail("cannot read visible frame", 4)
+
+if receipt["version"] == 2:
+    try:
+        unchanged(receipt_path, receipt)
+    except (OSError, ValueError, Refused) as error:
+        fail(str(error), 4)
 
 approval = extract_approval(read_result.stdout)
 approval_digest = digest_json(approval)
