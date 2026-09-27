@@ -18,15 +18,19 @@
   approval reuse still requires a successful live state-root probe. The launch
   arguments have offline coverage and direct Claude CLI smoke evidence, but
   their effective Herdr behavior is not yet verified.
-- Record the Codex shared-daemon context regression as an unresolved
-  client-to-pane binding dependency. A daemon can omit Herdr variables or retain
-  another pane's values, so their presence alone does not establish caller
-  ownership. `HERDR_ENV` is a pane-local hint, not a Herdr API requirement.
-  Neither `CODEX_THREAD_ID` nor UI focus safely recovers the pane. Crew stops
-  when the command runner's origin is unknown; asking for a manual pane ID or
-  relaunching with `--no-daemon` is not presented as the fix.
+- Separate collaboration roles/assignments and phase decisions from execution
+  coordination and Herdr transport. Keep detailed supervision, artifact, approval,
+  and review rules in installed references behind a concise skill entry.
+- Bind leads to a stable controller ID and explicit Herdr session instead of a
+  lead pane. Create visible partner workspaces/tabs without inferring UI focus;
+  preserve native worker launch restrictions and exact worker identity checks.
+- Introduce controller-owned v2 partner receipts because published v1 receipts
+  exist. Require explicit live-partner handoff, archive the exact prior receipt,
+  and leave run/relay/approval formats unchanged. No automatic state migration.
+- Route prompts, dialog replies, approvals and status through the recorded
+  session. Refuse competing controllers and serialize partner mutations.
 - Refresh packaged installation examples to the verified published v0.1.3 tag.
-  The managed installer and retained-state formats are unchanged.
+  The managed installer is unchanged.
 
 The changed send helper has synthetic regression coverage but has not been rerun
 against a live consecutive-dialog sequence.

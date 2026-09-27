@@ -2,13 +2,13 @@
 
 An agent skill for **bounded multi-model collaboration** inside [Herdr](https://herdr.dev).
 
-One agent acts as **lead**: it scopes bounded runs and delegates implementation to a retained
-**partner** — the worker agent of a different model kind in a sibling Herdr pane — supervises and
-reviews that partner, and keeps its context across runs — bounded by the Herdr server's
-lifetime and the agent's own context window — until explicit retirement.
+The lead scopes a run, assigns implementation to a worker of a different model
+kind, supervises it, and independently reviews the result. The user can watch
+and intervene in the worker's Herdr terminal. Assignments, evidence, findings,
+and handoffs remain readable in the project after either agent loses context.
 
-Either side can be either product. Install it wherever you start sessions from — the skill
-detects its own agent kind at runtime and picks a different kind for the worker.
+A bounded run and a retained partner have different lifetimes. The partner stays
+open until explicit retirement; finishing a run preserves it.
 
 ## Why a different model
 
@@ -19,34 +19,33 @@ for that. The skill refuses the same-kind case on purpose.
 
 ## Requirements
 
-- Herdr, with a lead command runner reliably bound to its Herdr pane
-- Two supported agent kinds installed locally (e.g. Claude Code and Codex)
-- A Git working tree, for diff-based review
+- A running, explicitly selected Herdr named session
+- Claude Code and Codex installed locally
+- Python 3.11+ on macOS or Linux; a Git working tree for diff review
 
-Crew uses the lead pane ID to place the worker and record ownership.
-`HERDR_ENV` is a pane-local context hint, not a requirement of Herdr's API or
-proof that this conversation occupies the pane named by `HERDR_PANE_ID`.
-Codex CLI 0.157.1's shared background server can omit those values or inherit
-them from another client. Its `CODEX_THREAD_ID` identifies the conversation,
-but Herdr currently has no reliable mapping from that ID to the originating
-pane in this situation. Herdr's [`--current` option](https://herdr.dev/docs/cli-reference/#panes)
-also requires a pane-local ID; selecting the focused pane would guess.
+The lead can run through a daemon without `HERDR_ENV` or a pane ID. Its stable
+controller ID owns the collaboration. The Herdr session and the worker's
+name/kind/pane identify the execution target. No `--no-daemon` launch or guessed
+focused pane is needed. A new partner gets a visible dedicated workspace, or a
+tab in an explicitly selected workspace.
 
-When the command runner's connection to the lead pane cannot be established,
-stop before Herdr control. Crew cannot obtain this conversation's pane ID
-automatically from the shared daemon. Asking the user to look up and supply an
-ID would be a manual workaround, not a repair to automatic Crew use. A special
-`codex --no-daemon` launch is not a general solution, and an observed
-`codex resume --no-daemon` did not move this conversation's command runner.
-Do not set pane variables by hand or use the UI's focused pane as the caller.
-The general fix needs Codex to pass each requesting client's pane context to
-its command runner, or to expose a client identity that Herdr can independently
-bind to a pane. Crew can then validate that binding against Herdr before it
-splits or closes anything; Crew alone cannot reconstruct missing provenance.
-Related upstream reports cover
-[client context in hooks](https://github.com/openai/codex/issues/44902) and
-[stale terminal variables in hooks](https://github.com/openai/codex/issues/48500);
-neither resolves the shell-tool environment observed here.
+### Architecture
+
+| Responsibility | Implementation |
+| --- | --- |
+| Roles, assignment, phase transitions and decisions | [Collaboration contract](skills/crew/references/collaboration.md), [workflow](skills/crew/references/workflow.md) |
+| Ownership, launch, attach, handoff, retirement | [Execution binding](skills/crew/references/execution.md), `partner.py` |
+| Visible process and explicit session routing | `herdr_transport.py`, `herdr.sh` |
+| Evidence, relay, status and approval | Existing deterministic helpers and [record contract](skills/crew/references/records.md) |
+
+The Crew skill provides the procedure and host entry point. The separate Herdr
+skill is not an execution dependency. Controller identity is a coordination guard,
+not authentication against another process with authority-state access.
+
+**Development status:** the controller binding is unreleased. The install command
+below still selects v0.1.3, whose ownership uses the lead pane. Existing installed
+copies are not modified by repository development. Retained v1 receipts require
+an explicit, source-preserving handoff; installation does not migrate them.
 
 ## Install
 
@@ -93,7 +92,7 @@ installer and the archive installer own separate installation layouts and
 metadata; follow the [installation ownership rules](INSTALL.md#existing-installations)
 when changing methods.
 
-Then, inside a Herdr pane:
+After installing, request Crew explicitly (v0.1.3 still requires a Herdr lead pane):
 
 ```
 Use crew to work on this with Codex.
@@ -142,7 +141,7 @@ Use the same `CREW_STATE_DIR` setting as the run. `--help` prints usage without 
 Exit 0 means help was printed or the snapshot has no reported attention items, 1 means attention
 or unavailable evidence, and 2 means invalid arguments.
 Neither 0 nor a report's completion marker is a run verdict. See the
-[status output contract](skills/crew/SKILL.md#inspecting-run-status) for JSON and artifact semantics.
+[status output contract](skills/crew/references/records.md#inspecting-run-status) for JSON and artifact semantics.
 
 ## Design decisions
 
@@ -176,7 +175,7 @@ templates, ownership, and fresh-session continuation.
 agents render on the alternate screen, where output that scrolls away cannot be recovered at
 any `--lines` value. Every phase therefore writes an artifact file and replies with only its
 path. This also keeps long prompts out of shell quoting, and makes a run resumable.
-Lead-only pointers, pane ownership, and approval records live in a validated external state root,
+Lead-only pointers, controller ownership, and approval records live in a validated external state root,
 while worker-authored artifacts remain in the workspace. `worker-start.sh` now pins a
 workspace-scoped Codex profile or a state-root-denying Claude auto profile when creating a
 worker. An already-live partner keeps its existing permissions. Approval-record authority still
@@ -215,7 +214,7 @@ a working repository outside its own. The loop, the artifact protocol,
 the escalation boundary, and the two lifetimes — a bounded run, a partner that outlives it —
 are settled.
 
-Ten shell entry points carry the mechanics: read-only status inspection, context relay
+The shell entry points and Python coordination modules carry the mechanics: read-only status inspection, context relay
 publication and reading plans, run initialization and ending, partner attach-or-create
 and explicit retirement, the artifact check, the guarded key
 send, the typed approval record with user-visible set grants, and the external state root that
@@ -225,7 +224,7 @@ worker keeps its earlier profile. The lead checks actual protection before reusi
 Classification, approval authority, and verdicts stay with the lead. The offline helper and
 relay suites pin the scripts' documented behaviour and run with no Herdr server. They are
 documented in
-[`tests/README.md`](tests/README.md) and deliberately excludes `run-init.sh`'s Git wiring.
+[`tests/README.md`](tests/README.md) and deliberately exclude `run-init.sh`'s Git wiring.
 
 On September 26, 2026, the state-root probe ran against a live Claude Code worker in auto mode
 without the new launch profile:

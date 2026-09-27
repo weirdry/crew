@@ -364,7 +364,8 @@ class Releases(unittest.TestCase):
             self.assertEqual([r['status'] for r in json.loads(result.stdout)['results']], ['current', 'current'])
 
     def documented_shell(self, section):
-        skill = (self.payload / 'skill/SKILL.md').read_text()
+        reference = 'records.md' if section.startswith('To perform') else 'workflow.md'
+        skill = (self.payload / 'skill/references' / reference).read_text()
         block = skill.split(section, 1)[1].split('```bash\n', 1)[1].split('```', 1)[0]
         return textwrap.dedent(block)
 

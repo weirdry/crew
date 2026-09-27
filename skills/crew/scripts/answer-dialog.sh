@@ -93,6 +93,38 @@ refuse() {
   exit 3
 }
 
+# Existing v1/no-receipt invocations retain their published ambient transport.
+# A controller receipt always routes through the verified, session-bound adapter.
+script_dir=${0%/*}
+[ "$script_dir" != "$0" ] || script_dir=.
+state_json=$("$script_dir/state-root.sh") || exit 4
+transport_mode=$(python3 - "$state_json" <<'PYMODE'
+import json, os, sys
+from pathlib import Path
+path = Path(json.loads(sys.argv[1])["state_root"]) / "worker.json"
+if os.path.lexists(path):
+    if path.is_symlink() or not path.is_file():
+        raise SystemExit("unsafe partner receipt")
+    receipt = json.loads(path.read_text())
+    if not isinstance(receipt, dict) or receipt.get("version") not in (1, 2):
+        raise SystemExit("invalid partner receipt")
+    if os.environ.get("CREW_CONTROLLER_ID") and receipt["version"] != 2:
+        raise SystemExit("controller-bound receipt required")
+    print("bound" if receipt["version"] == 2 else "legacy")
+else:
+    if os.environ.get("CREW_CONTROLLER_ID"):
+        raise SystemExit("controller-bound receipt required")
+    print("legacy")
+PYMODE
+) || exit 4
+herdr() {
+  if [ "$transport_mode" = bound ]; then
+    "$script_dir/herdr.sh" "$@"
+  else
+    command herdr "$@"
+  fi
+}
+
 first_json=$(herdr agent get "$worker") || exit 4
 first_status=$(json_field "$first_json" agent_status) || exit 4
 first_seq=$(json_field "$first_json" state_change_seq) || exit 4

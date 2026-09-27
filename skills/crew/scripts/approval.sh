@@ -46,7 +46,7 @@ fi
 state_json=$("$script_dir/state-root.sh") || exit 6
 state_root=$(python3 -c 'import json, sys; print(json.loads(sys.argv[1])["state_root"])' "$state_json") || exit 6
 
-CREW_RESOLVED_STATE_ROOT=$state_root python3 - "$@" <<'PY'
+CREW_HELPERS_DIR=$script_dir CREW_RESOLVED_STATE_ROOT=$state_root python3 -B - "$@" <<'PY'
 from __future__ import annotations
 
 from pathlib import Path
@@ -520,21 +520,39 @@ run_id = current_lines[0]
 run_dir = cwd / ".crew" / run_id
 receipt_path = state_root / "worker.json"
 try:
+    if receipt_path.is_symlink() or (receipt_path.exists() and not receipt_path.is_file()):
+        fail("unsafe partner receipt", 3)
     receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
 except (OSError, UnicodeError, json.JSONDecodeError) as error:
     fail(f"cannot read workspace partner ownership receipt: {error}", 3)
 if (
     not isinstance(receipt, dict)
-    or receipt.get("version") != 1
+    or receipt.get("version") not in (1, 2)
     or receipt.get("worker_name") != worker
     or not isinstance(receipt.get("worker_pane_id"), str)
     or not receipt["worker_pane_id"]
 ):
     fail("worker does not match the workspace partner ownership receipt", 3)
 
+herdr_prefix = ["herdr"]
+if os.environ.get("CREW_CONTROLLER_ID") and receipt["version"] != 2:
+    fail("controller-bound receipt required", 3)
+if receipt["version"] == 2:
+    sys.path.insert(0, os.environ["CREW_HELPERS_DIR"])
+    from partner import validate_receipt, Refused
+    try:
+        validate_receipt(receipt)
+    except Refused as error:
+        fail(str(error), 3)
+    if (receipt.get("controller_id") != os.environ.get("CREW_CONTROLLER_ID")
+            or not isinstance(receipt.get("session"), str)
+            or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,127}", receipt["session"])):
+        fail("not the recorded controller or invalid session binding", 3)
+    herdr_prefix += ["--session", receipt["session"]]
+
 try:
     agent_result = subprocess.run(
-        ["herdr", "agent", "get", worker],
+        herdr_prefix + ["agent", "get", worker],
         check=False,
         capture_output=True,
         text=True,
@@ -547,12 +565,14 @@ try:
     agent = json.loads(agent_result.stdout)["result"]["agent"]
 except (json.JSONDecodeError, KeyError, TypeError) as error:
     fail(f"invalid worker state: {error}", 4)
-if agent.get("pane_id") != receipt["worker_pane_id"] or agent.get("agent_status") != "blocked":
+if (agent.get("pane_id") != receipt["worker_pane_id"] or agent.get("agent_status") != "blocked"
+        or (receipt["version"] == 2 and (agent.get("name") != worker
+            or agent.get("agent") != receipt["worker_kind"]))):
     fail("cannot extract approval: workspace partner is not blocked in its recorded pane", 4)
 
 try:
     read_result = subprocess.run(
-        ["herdr", "agent", "read", worker, "--source", "visible", "--lines", "200", "--format", "text"],
+        herdr_prefix + ["agent", "read", worker, "--source", "visible", "--lines", "200", "--format", "text"],
         check=False,
         capture_output=True,
         text=True,
