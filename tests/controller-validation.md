@@ -64,8 +64,12 @@ and artifact completion followed by retained-partner run finish.
 
 ## Evidence limits
 
-No hosted CI, dev integration, release, installation update, or live Herdr/agent
-acceptance was performed for this refactor. The prior provider permission findings
+The first hosted run at `743a7ed` passed on Ubuntu/Python 3.14 but exposed
+Python 3.11 argument parsing rejecting the documented trailing worker kind.
+The follow-up uses intermixed argument parsing; the existing 27 lifecycle tests
+exercise that command shape. Current-head hosted results are recorded in PR #13.
+Dev integration, release, installation update, and live Herdr/agent acceptance
+remain separate and were not performed. The prior provider permission findings
 in [live-claude-validation.md](live-claude-validation.md) remain applicable. Pinned
 launch arguments do not prove enforcement; each effective worker still needs the
 state-root shell/edit probe before reusable approvals are trusted.

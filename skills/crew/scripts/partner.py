@@ -225,7 +225,9 @@ def main():
     parser.add_argument('--handoff-from', help='exact previous owner; use only with user-authorized handoff')
     parser.add_argument('--create', action='store_true')
     parser.add_argument('kind', nargs='?', choices=['codex', 'claude'])
-    args = parser.parse_args()
+    # The shell entry point prepends the action; flags may precede the worker kind.
+    # Python 3.11 parse_args cannot resume that optional positional after flags.
+    args = parser.parse_intermixed_args()
     if any(not re.fullmatch(TOKEN, value) for value in
            [args.controller, args.session, *([args.workspace] if args.workspace else []),
             *([args.handoff_from] if args.handoff_from else [])]):
