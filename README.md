@@ -24,14 +24,19 @@ for that. The skill refuses the same-kind case on purpose.
 - A Git working tree, for diff-based review
 
 When Codex is the lead, its shell commands must receive the Herdr pane context.
-Recent Codex CLI versions can run commands through a shared background server
-whose process did not start in the pane. For a new Codex lead session, launch
-`codex --no-daemon` in the Herdr pane and verify `HERDR_ENV=1` and
-`HERDR_PANE_ID` from that lead's command tool before using Crew. Resuming an
-existing daemon-owned conversation with `codex resume --no-daemon` did not move
-its command runner in an observed Codex CLI 0.157.1 session; do not treat that
-flag on resume as proof of recovery. Do not set pane variables by hand or target
-the Herdr UI's focused pane as a substitute for caller context.
+Codex CLI 0.157.1's shared background server can omit those variables or retain
+another pane's values, so `HERDR_ENV=1` alone does not prove the caller pane.
+Until Codex passes the originating client context to each command runner, a
+Codex lead needs a **fresh** `codex --no-daemon` process launched inside the
+Herdr pane, followed by a command-tool check of `HERDR_ENV=1` and
+`HERDR_PANE_ID`. Treat this as a temporary launch constraint, not a Crew fix.
+Resuming an existing daemon-owned conversation with `codex resume --no-daemon`
+did not move its command runner in the observed session. Stop if the launch
+mode or pane identity cannot be established; do not set pane variables by hand
+or use the UI's focused pane as the caller. Related upstream reports cover
+[client context in hooks](https://github.com/openai/codex/issues/44902) and
+[stale terminal variables in hooks](https://github.com/openai/codex/issues/48500);
+neither resolves the shell-tool environment observed here.
 
 ## Install
 

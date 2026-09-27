@@ -18,11 +18,13 @@
   approval reuse still requires a successful live state-root probe. The launch
   arguments have offline coverage and direct Claude CLI smoke evidence, but
   their effective Herdr behavior is not yet verified.
-- Explain the fresh-session `codex --no-daemon` check when a Codex lead's
-  command runner lacks Herdr pane context. An observed attempt to resume an
-  existing daemon-owned conversation did not move its command runner. Missing
-  context reports the command boundary without claiming the user's terminal is
-  outside Herdr.
+- Record the Codex shared-daemon context regression as an unresolved upstream
+  dependency. A daemon can omit Herdr variables or retain another pane's values,
+  so their presence alone does not establish caller ownership. A fresh
+  `codex --no-daemon` launch is a temporary constraint; resuming an existing
+  daemon-owned conversation did not move its command runner. Missing context
+  reports the command boundary without claiming the user's terminal is outside
+  Herdr.
 - Refresh packaged installation examples to the verified published v0.1.3 tag.
   The managed installer and retained-state formats are unchanged.
 
