@@ -2,6 +2,8 @@
 
 ## 0.1.4
 
+- Align manual dialog handling with adapter delivery statuses and stop for user
+  escalation when an uncertain send leaves the same dialog at the same sequence.
 - Isolate all helper Python entry points from workspace modules and Python
   environment overrides, preventing workspace files from running as the lead.
 - Distinguish pre-forward refusal from uncertain delivery after a prompt or key
