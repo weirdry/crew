@@ -11,7 +11,7 @@ if [ "$#" -ne 1 ]; then
   exit 2
 fi
 
-python3 -c '
+python3 -I -c '
 from pathlib import Path
 import sys
 

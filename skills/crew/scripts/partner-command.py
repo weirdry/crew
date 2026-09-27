@@ -6,6 +6,9 @@ from pathlib import Path
 import subprocess
 import sys
 
+# Shell entry points use isolated Python; add only the installed helper directory.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
 from partner import Refused, read_receipt, verify, locked, unchanged, check_dialog_binding
 from herdr_transport import Herdr, TransportError
 
@@ -30,7 +33,18 @@ def main():
         unchanged(root / 'worker.json', receipt)
         # Keep output and command-specific semantics intact, including text and --wait.
         result = subprocess.run(transport.prefix + args)
-        unchanged(root / 'worker.json', receipt)
+        mutating = args[1] in ('prompt', 'send-keys')
+        try:
+            unchanged(root / 'worker.json', receipt)
+        except (Refused, OSError, ValueError) as error:
+            if not mutating:
+                raise
+            print('outcome=delivery-uncertain:command forwarded; ' + str(error), file=sys.stderr)
+            return 15
+        if mutating and result.returncode:
+            # A failed/timeout response does not prove that Herdr delivered no input.
+            print('outcome=delivery-uncertain:command forwarded; transport returned nonzero', file=sys.stderr)
+            return 15
         return result.returncode
 
 

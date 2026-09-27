@@ -1,5 +1,5 @@
 {
-  "id": "answer-dialog-status-5-send-failed",
+  "id": "answer-dialog-legacy-send-uncertain",
   "script": "answer-dialog.sh",
   "args": ["crew-worker", "enter"],
   "herdr": [
@@ -11,8 +11,8 @@
     {"argv": ["agent", "send-keys", "crew-worker", "enter"], "results": [{"status": 1}]}
   ],
   "expect": {
-    "status": 5,
-    "stdout_contains": ["pre_key_seq=10", "outcome=send-failed"],
+    "status": 6,
+    "stdout_contains": ["pre_key_seq=10", "outcome=delivery-uncertain"],
     "calls_exact": [
       ["agent", "get", "crew-worker"], ["agent", "read", "crew-worker", "--source", "visible", "--lines", "120", "--format", "text"],
       ["agent", "get", "crew-worker"], ["agent", "send-keys", "crew-worker", "enter"]

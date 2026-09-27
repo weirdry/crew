@@ -44,9 +44,9 @@ if [ "$script_dir" = "$0" ]; then
   script_dir=.
 fi
 state_json=$("$script_dir/state-root.sh") || exit 6
-state_root=$(python3 -c 'import json, sys; print(json.loads(sys.argv[1])["state_root"])' "$state_json") || exit 6
+state_root=$(python3 -I -c 'import json, sys; print(json.loads(sys.argv[1])["state_root"])' "$state_json") || exit 6
 
-CREW_HELPERS_DIR=$script_dir CREW_RESOLVED_STATE_ROOT=$state_root python3 -B - "$@" <<'PY'
+CREW_HELPERS_DIR=$script_dir CREW_RESOLVED_STATE_ROOT=$state_root python3 -I -B - "$@" <<'PY'
 from __future__ import annotations
 
 from pathlib import Path

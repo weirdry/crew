@@ -3,4 +3,4 @@
 set -u
 script_dir=${0%/*}
 [ "$script_dir" != "$0" ] || script_dir=.
-exec python3 "$script_dir/relay.py" "$@"
+exec python3 -I "$script_dir/relay.py" "$@"

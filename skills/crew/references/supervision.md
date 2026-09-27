@@ -75,11 +75,11 @@ repeat:
              class (a) → answer-dialog.sh <worker> <keys>
                          advanced → read printed pre_key_seq and post_key_seq;
                                     failed_dialog = none; same_dialog_repeats = 0; continue
-                         send failure (exit 5) → read printed pre_key_seq;
-                                                 key did not land;
+                         pre-forward refusal (exit 5) → read printed pre_key_seq;
+                                                 no key command was forwarded;
                                                  failed_dialog = (dialog_text, pre_key_seq);
                                                  continue
-                         timeout (exit 6) or visible-changed (exit 7) → delivery uncertain;
+                         delivery-uncertain/timeout (exit 6) or visible-changed (exit 7) → delivery uncertain;
                                  never "key did not land"; failed_dialog = none;
                                  same_dialog_repeats = 0; re-read the pane and verify the
                                  requested effect; classify any visible dialog anew before
@@ -208,7 +208,7 @@ name fails safely without sending input. `esc` is the canonical Escape name.
 | Class | Examples | Action |
 | --- | --- | --- |
 | (a) answer yourself | edit approval for a file inside the workspace; running tests, linters, or builds; a choice between options that `task.md` already settles; a clarifying question answerable from `task.md` | Apply the guarded `send-keys` path in the Supervision loop, then log the answer in `state.md` |
-| (b) escalate to the user | deleting or moving files; bulk rewrites; network access; writing outside the workspace; `git commit`, `push`, `reset`, or history rewriting; credentials or secrets; workspace trust prompts; anything not derivable from `task.md` | Check the active run's approval record first. On no match, report what is being asked directly to the user, attempt `herdr notification show "<title>" --body "<what is being asked>" --sound request` as a best-effort ping, read `.result.shown` from its response, then stop the round. If `shown` is `false`, tell the user that the ping was not shown. |
+| (b) escalate to the user | deleting or moving files; bulk rewrites; network access; writing outside the workspace; `git commit`, `push`, `reset`, or history rewriting; credentials or secrets; workspace trust prompts; anything not derivable from `task.md` | Check the active run's approval record first. On no match, report what is being asked directly to the user, attempt `herdr --session "$session" notification show "<title>" --body "<what is being asked>" --sound request` as a best-effort ping, read `.result.shown` from its response, then stop the round. If `shown` is `false`, tell the user that the ping was not shown. |
 
 This table governs requests the lead can observe. The worker's native permission setting decides
 which actions run without a request; Crew cannot intercept or approve those before execution.
@@ -281,7 +281,7 @@ only a best-effort ping on top of that report; exit status 0 does not prove deli
 - `agent_blocked` — `<crew-skill-dir>/scripts/herdr.sh agent prompt` refuses a worker that remains at a dialog. Return to
   the `blocked` branch of the Supervision loop; do not retry the prompt until that branch
   confirms the dialog answer, and stop if it escalates.
-- Notification no-op — `herdr notification show` can exit 0 with `.result.shown` set to
+- Notification no-op — `herdr --session "$session" notification show` can exit 0 with `.result.shown` set to
   `false`. Keep the lead's report as the mandatory escalation channel, inspect `shown`, and
   tell the user when the best-effort ping was not shown.
 - Alternate-screen loss — TUI worker output that scrolls away is unrecoverable from scrollback
@@ -289,7 +289,7 @@ only a best-effort ping on top of that report; exit status 0 does not prove deli
 - Name collision — agent names must be unique among live agents across all workspaces.
 - Wrong-pane cleanup — never close `--current`, `$HERDR_PANE_ID`, or a pane copied from visual
   position. `worker-stop.sh` closes only the partner in `<state>/worker.json`, only after explicit
-  user instruction, and refuses unless the caller is the recorded lead and the live name and kind
+  user instruction, and refuses unless the caller is the recorded controller and the live name and kind
   still resolve to the recorded pane.
 - Helper changed under a running lead — a development symlink into a repository checkout
   loads edits, pulls and branch switches immediately, even before a commit. A Skills CLI link

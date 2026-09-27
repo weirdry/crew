@@ -2,6 +2,14 @@
 
 ## 0.1.4
 
+- Isolate all helper Python entry points from workspace modules and Python
+  environment overrides, preventing workspace files from running as the lead.
+- Distinguish pre-forward refusal from uncertain delivery after a prompt or key
+  command; never treat a post-send receipt change or timeout as non-delivery.
+- Align relay prompts and notification routing with the controller/session
+  contract; document serialized waits, retained history, and legacy control limits.
+- Keep fixture runs independent of inherited controller and Herdr variables and
+  restore the documented missing-run error status.
 - Accept colon-qualified Herdr pane IDs in retained-partner status inspection.
 - Report a changed visible approval dialog separately when `state_change_seq`
   does not advance, without resending keys. Both changed-frame and timeout

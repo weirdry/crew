@@ -4,9 +4,9 @@
 #   2  Worker or keys were omitted, or the expected approval token was invalid.
 #   3  Guard refused: the worker was not blocked on the expected visible confirmation option list.
 #   4  Herdr state or pane output could not be read before sending keys.
-#   5  send-keys rejected the requested keys; the captured sequence is printed.
+#   5  The bound adapter refused before forwarding keys; the sequence is printed.
 #   6  state_change_seq did not advance before timeout, and the visible frame was unchanged or
-#      unreadable; sequence data is printed. Delivery is uncertain.
+#      unreadable, or a forwarded send failed/changed binding. Delivery is uncertain.
 #   7  state_change_seq did not advance before timeout, but the visible frame changed; sequence
 #      data is printed. This shows only a changed frame, not which dialog received the keys.
 
@@ -46,7 +46,7 @@ if [ "$expected_approval_present" = yes ]; then
     printf '%s\n' 'invalid expected-command token' >&2
     exit 2
   fi
-  if ! python3 -c '
+  if ! python3 -I -c '
 import base64, sys
 try:
     base64.b64decode(sys.argv[1].encode("ascii"), altchars=b"-_", validate=True).decode("utf-8")
@@ -63,7 +63,7 @@ if [ "$expected_grant_present" = yes ]; then
     printf '%s\n' 'invalid expected-grant token' >&2
     exit 2
   fi
-  if ! python3 -c '
+  if ! python3 -I -c '
 import base64, sys
 try:
     base64.b64decode(sys.argv[1].encode("ascii"), altchars=b"-_", validate=True).decode("utf-8")
@@ -79,7 +79,7 @@ worker=$1
 shift
 
 json_field() {
-  python3 -c '
+  python3 -I -c '
 import json, sys
 agent = json.loads(sys.argv[1])["result"]["agent"]
 value = agent[sys.argv[2]]
@@ -98,7 +98,7 @@ refuse() {
 script_dir=${0%/*}
 [ "$script_dir" != "$0" ] || script_dir=.
 state_json=$("$script_dir/state-root.sh") || exit 4
-transport_binding=$(python3 -B - "$state_json" "$script_dir" <<'PYMODE'
+transport_binding=$(python3 -I -B - "$state_json" "$script_dir" <<'PYMODE'
 import json, os, sys
 from pathlib import Path
 sys.path.insert(0, sys.argv[2])
@@ -144,7 +144,7 @@ if [ "$first_status" != blocked ]; then
 fi
 
 frame=$(herdr agent read "$worker" --source visible --lines 120 --format text) || exit 4
-if ! printf '%s' "$frame" | python3 -c '
+if ! printf '%s' "$frame" | python3 -I -c '
 import re, sys
 
 text = sys.stdin.read()
@@ -208,13 +208,23 @@ if [ "$pre_key_seq" != "$first_seq" ]; then
   refuse 'state-changed-during-guard'
 fi
 
-if ! herdr agent send-keys "$worker" "$@" >/dev/null; then
+herdr agent send-keys "$worker" "$@" >/dev/null
+send_status=$?
+if [ "$send_status" -ne 0 ]; then
   printf 'pre_key_seq=%s\n' "$pre_key_seq"
-  printf '%s\n' 'outcome=send-failed'
-  exit 5
+  case "$transport_binding:$send_status" in
+    legacy:*) ;;
+    *:2|*:10|*:11)
+      printf '%s\n' 'outcome=send-failed'
+      exit 5
+      ;;
+  esac
+  # Unknown failures (including an interrupted adapter) cannot prove non-delivery.
+  printf '%s\n' 'outcome=delivery-uncertain'
+  exit 6
 fi
 
-deadline=$(python3 -c 'import time; print(time.monotonic() + 5.0)') || exit 6
+deadline=$(python3 -I -c 'import time; print(time.monotonic() + 5.0)') || exit 6
 last_seq=$pre_key_seq
 
 while :; do
@@ -232,7 +242,7 @@ while :; do
     fi
   fi
 
-  expired=$(python3 -c 'import sys, time; print("yes" if time.monotonic() >= float(sys.argv[1]) else "no")' "$deadline") || expired=yes
+  expired=$(python3 -I -c 'import sys, time; print("yes" if time.monotonic() >= float(sys.argv[1]) else "no")' "$deadline") || expired=yes
   if [ "$expired" = yes ]; then
     printf 'pre_key_seq=%s\n' "$pre_key_seq"
     printf 'post_key_seq=%s\n' "$last_seq"
@@ -246,5 +256,5 @@ while :; do
     printf '%s\n' 'outcome=timeout'
     exit 6
   fi
-  python3 -c 'import time; time.sleep(0.2)'
+  python3 -I -c 'import time; time.sleep(0.2)'
 done

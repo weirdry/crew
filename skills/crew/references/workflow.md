@@ -92,7 +92,7 @@ Enforced rules:
   IFS= read -r current_run < "$state/.current"
   test "$current_run" = "$run_id" || exit 1
   test -d ".crew/$run_id" || exit 1
-  python3 - "$state/$run_id/approvals.jsonl" ".crew/$run_id/approvals.audit.jsonl" <<'PY' || exit 1
+  python3 -I - "$state/$run_id/approvals.jsonl" ".crew/$run_id/approvals.audit.jsonl" <<'PY' || exit 1
   from pathlib import Path
   import os, stat, sys
   source, audit = map(Path, sys.argv[1:])
