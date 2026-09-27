@@ -81,9 +81,11 @@ repeat:
                                                  continue
                          delivery-uncertain/timeout (exit 6) or visible-changed (exit 7) → delivery uncertain;
                                  never "key did not land"; failed_dialog = none;
-                                 same_dialog_repeats = 0; re-read the pane and verify the
-                                 requested effect; classify any visible dialog anew before
-                                 another key; never resend blindly; continue
+                                 apply the uncertain-delivery rule below;
+                                 unchanged dialog and sequence, changed binding, or unavailable evidence →
+                                     escalate without another key, then stop this round
+                                 verified progress → same_dialog_repeats = 0;
+                                     classify any new dialog independently; continue
                          guard refusal → return to the blocked guard without sending
              class (b) → approval.sh check <worker>
                          exact match → read printed approval_kind and command_b64;
@@ -117,6 +119,23 @@ The lead identifies `dialog_text`, applies the repeat test, classifies (a) versu
 chooses the keys before calling `answer-dialog.sh`. The helper only rechecks the mechanical
 blocked-plus-visible-option-list guard, captures and prints `pre_key_seq`, sends the supplied
 keys once, and polls. It never decides whether a dialog may be answered, and it never resends.
+
+### Uncertain delivery
+
+Apply this rule after helper exit 6 or 7, or after a manual send reports adapter
+status 15 or any other failure not explicitly classified as pre-forward refusal.
+Do not treat uncertainty as permission to retry, and do not set `failed_dialog`.
+
+Re-read the same partner's binding, visible confirmation text/options, and
+`state_change_seq`, and verify the requested effect. If the binding changed, the
+evidence cannot be read, or the same dialog text remains at the same `pre_key_seq`,
+escalate to the user and stop the round **without another key send**. A changed
+background frame alone is not progress. This stop applies immediately; do not
+reset a retry counter and loop through the same uncertain dialog again.
+
+Only after verifying progress may supervision continue. A new visible dialog is
+classified and authorized independently; a changed sequence alone does not renew
+the previous authorization or justify resending the previous answer.
 
 Exit 0 means `state_change_seq` advanced. When the sequence does not advance within about five
 seconds, the helper reads the visible pane once more with the guard's arguments and compares it
@@ -191,17 +210,25 @@ dialog structure, refuse incomplete, truncated, ambiguous, or unsupported captur
 the kind and key exactly. Immediately re-read and compare that same typed key before the guarded
 `send-keys`; return to the blocked guard without sending if it changed.
 
-Without the answer helper, expand its call exactly as follows: capture
-`dialog_agent.state_change_seq` as `pre_key_seq`, run `<crew-skill-dir>/scripts/herdr.sh agent send-keys <worker> <keys>`,
-then poll `<crew-skill-dir>/scripts/herdr.sh agent get <worker>` at bounded intervals until `state_change_seq` is greater
-than `pre_key_seq` or the post-key timeout expires. Only a failed `send-keys` sets
-`failed_dialog = (dialog_text, pre_key_seq)`. On timeout, read the visible pane once and compare
-it with the pre-send frame. Changed or not, delivery is uncertain. Do not set `failed_dialog`
-and do not resend. Verify the requested effect, and classify any visible dialog anew before
-another key.
+Without the answer helper, retain the blocked/visible-dialog guards and capture
+`dialog_text`, the pre-send frame, and `dialog_agent.state_change_seq` as `pre_key_seq`.
+Run `<crew-skill-dir>/scripts/herdr.sh agent send-keys <worker> <keys>` once and
+capture its exit status immediately:
 
-`<crew-skill-dir>/scripts/herdr.sh agent send-keys` validates every key name before writing any bytes, so an unknown key
-name fails safely without sending input. `esc` is the canonical Escape name.
+- **2, 10, or 11:** the bound adapter refused before forwarding. Only these statuses
+  set `failed_dialog = (dialog_text, pre_key_seq)` and use the bounded pre-forward
+  refusal path in the supervision loop.
+- **15 or any other nonzero status:** delivery is uncertain. Apply the uncertain-delivery
+  rule above; do not set `failed_dialog` or resend the keys.
+- **0:** poll `<crew-skill-dir>/scripts/herdr.sh agent get <worker>` at bounded intervals
+  until `state_change_seq` exceeds `pre_key_seq` or the post-key timeout expires.
+  Stop on a changed binding. On timeout or unavailable evidence, apply the same
+  uncertain-delivery rule. Verify the requested effect before continuing.
+
+Herdr validates key names before writing bytes, but the bound adapter conservatively
+reports a forwarded Herdr rejection, including an unknown key, as status 15. Do not
+infer non-delivery from that diagnostic or retry automatically. `esc` is the canonical
+Escape name.
 
 ## Which inputs you may answer
 

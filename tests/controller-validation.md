@@ -121,12 +121,35 @@ The full offline suite passed with deliberately conflicting inherited values for
 `CREW_CONTROLLER_ID`, `CREW_DIALOG_RECEIPT_SHA256`, `HERDR_ENV`, `HERDR_SESSION`,
 and `HERDR_PANE_ID`: 171 fixtures + 23 relay + 47 controller + 43 release tests =
 **284 checks**, plus shell syntax and version policy. This is implementation and
-local regression evidence; a second independent review has not been performed.
+local regression evidence; the subsequent independent re-review is recorded below.
 Hosted results for the correction commit are recorded in PR #13. Existing
 installations and runtime state were not modified.
 
 Boundary classification: unreleased — corrected in place in the 0.1.4 candidate;
 no additional receipt version, migration, or compatibility path.
+
+### Independent re-review and manual-procedure correction
+
+September 28, 2026. The same independent reviewer rechecked `c903a75`, confirmed
+the earlier implementation fixes with fresh synthetic probes, and passed all 284
+checks with conflicting inherited environment variables. Planted-module probes
+covered 11 helpers. The remaining findings were a P2 in the documented manual-send
+fallback and a P3 in the uncertain-dialog continuation rule.
+
+The manual procedure now classifies only adapter statuses 2, 10 and 11 as
+pre-forward refusal. Status 15 and all other nonzero results are uncertain, including
+forwarded unknown-key rejection. Both helper and manual paths share one rule:
+an unchanged dialog at the same sequence, a changed binding, or unavailable evidence
+requires immediate escalation and ends the round without another key send. Progress
+must be verified before any new dialog is independently classified and authorized.
+
+This follow-up changes documentation only. Its content and relative links were
+reviewed against the implemented status contract. The full offline suite passed
+again: 171 fixtures + 23 relay + 47 controller + 43 release tests = 284 checks,
+plus shell syntax and version policy. The suite verifies helper behavior; adherence
+to the revised manual procedure was checked by content review, not a live agent run.
+Current-head hosted checks are recorded in PR #13. The reviewer has not yet inspected
+this final documentation correction. Live Crew acceptance remains separate.
 
 ### Remaining runtime limits
 
