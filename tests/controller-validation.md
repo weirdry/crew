@@ -148,8 +148,25 @@ reviewed against the implemented status contract. The full offline suite passed
 again: 171 fixtures + 23 relay + 47 controller + 43 release tests = 284 checks,
 plus shell syntax and version policy. The suite verifies helper behavior; adherence
 to the revised manual procedure was checked by content review, not a live agent run.
-Current-head hosted checks are recorded in PR #13. The reviewer has not yet inspected
-this final documentation correction. Live Crew acceptance remains separate.
+Current-head hosted checks are recorded in PR #13.
+
+The same reviewer subsequently inspected `746b245`, confirmed both documentation
+findings resolved, and approved dev integration with no blocking findings. It
+reran all 284 checks and used a synthetic receipt-replacement probe to identify
+one optional P3: the manual path lacked an original pane ID for its changed-binding
+comparison. A replacement worker's higher sequence could be mistaken for progress.
+
+The follow-up captures `dialog_agent.pane_id` as `pre_key_pane_id` before sending
+and compares every subsequent agent lookup against it before interpreting the
+sequence, including uncertain-delivery inspection. A different pane ID or adapter
+refusal stops the round and escalates without another send; missing identity is
+unavailable evidence and also stops. This documentation-only correction addresses
+the optional P3 without changing helpers or receipt formats. Content review covers
+same-pane progress, replacement with a higher sequence, adapter refusal, and missing
+identity. The reviewer approval applies to `746b245`; this last wording change has
+not received another independent review. The full offline suite was rerun for this
+correction: all 284 checks, shell syntax, and version policy passed, along with
+relative-link and whitespace checks. Live Crew acceptance remains separate.
 
 ### Remaining runtime limits
 
