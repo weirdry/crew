@@ -207,6 +207,9 @@ def run_case(scripts_dir: Path, case_path: Path) -> str:
             raise CaseFailure(f"script is absent: {script}")
 
         environment = os.environ.copy()
+        for key in list(environment):
+            if key.startswith('HERDR_') or key in ('CREW_CONTROLLER_ID', 'CREW_DIALOG_RECEIPT_SHA256'):
+                environment.pop(key)
         environment["CREW_STATE_DIR"] = str(state.parent)
         environment.update(case.get("env", {}))
         environment["PATH"] = str(Path(__file__).parent / "bin") + os.pathsep + environment.get("PATH", "")

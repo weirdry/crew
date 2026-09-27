@@ -92,6 +92,44 @@ runtime state, or live agent.
 
 ## Evidence limits
 
+### Independent review corrections
+
+September 28, 2026. Claude Code 2.1.283, Opus 5.5 with xhigh effort, independently
+reviewed `b38b749...3ebd6f4` in a separate Herdr pane without Crew orchestration.
+Its verdict was request changes: a pre-existing Python import vulnerability, two
+P2 findings in delivery classification and relay routing, plus P3 contract/test
+inconsistencies. The review used disposable synthetic fixtures; it did not establish
+live Crew acceptance. The subsequent corrections are:
+
+- **P1:** every helper shell entry and documented Python snippet uses `-I`.
+  Workspace modules, `PYTHONPATH`, and user site customizations cannot supply helper
+  imports; Python sibling modules use the explicit installed helper directory.
+  Planted-module fixtures cover state resolution, launch, prompt, approval/dialog,
+  relay startup and artifact checks, including a separate `sitecustomize` probe.
+- **P2:** forwarded prompts and keys return adapter status 15 on a changed receipt
+  or failed transport result. Dialog handling reports delivery-uncertain (6), not
+  pre-forward refusal (5). Reproductions assert one send, no automatic retry, and
+  correct handling of prompt timeout and genuine pre-forward refusal.
+- **P2:** relay continuation now uses the controller-bound adapter.
+- **P3:** retained the ownership lock and documented non-overlapping bound commands
+  and finite waits. Fixed missing-run status 3, documented ownership refusal 11,
+  isolated fixture environments, specified the legacy helpers that still bypass
+  receipt checks, listed lock/history files, corrected controller terminology,
+  and explicitly routed notification pings to the selected session.
+
+The full offline suite passed with deliberately conflicting inherited values for
+`CREW_CONTROLLER_ID`, `CREW_DIALOG_RECEIPT_SHA256`, `HERDR_ENV`, `HERDR_SESSION`,
+and `HERDR_PANE_ID`: 171 fixtures + 23 relay + 47 controller + 43 release tests =
+**284 checks**, plus shell syntax and version policy. This is implementation and
+local regression evidence; a second independent review has not been performed.
+Hosted results for the correction commit are recorded in PR #13. Existing
+installations and runtime state were not modified.
+
+Boundary classification: unreleased — corrected in place in the 0.1.4 candidate;
+no additional receipt version, migration, or compatibility path.
+
+### Remaining runtime limits
+
 The first hosted run at `743a7ed` passed on Ubuntu/Python 3.14 but exposed
 Python 3.11 argument parsing rejecting the documented trailing worker kind.
 The follow-up uses intermixed argument parsing; the existing 27 lifecycle tests

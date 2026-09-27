@@ -21,12 +21,12 @@ if [ "$script_dir" = "$0" ]; then
   script_dir=.
 fi
 state_json=$("$script_dir/state-root.sh") || exit 7
-state_root=$(python3 -c '
+state_root=$(python3 -I -c '
 import json, sys
 print(json.loads(sys.argv[1])["state_root"])
 ' "$state_json") || exit 7
 
-python3 - "$1" "$state_root" <<'PY'
+python3 -I - "$1" "$state_root" <<'PY'
 from pathlib import Path
 import os
 import re

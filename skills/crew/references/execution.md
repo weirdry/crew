@@ -26,6 +26,11 @@ launch profiles. `--create` refuses if the recorded worker is already live.
 The helper checks the active run, owner and session, different kinds, retained
 name/pane/kind, native launch settings, and completion of startup. It serializes
 start, retirement and bound commands per workspace with a local file lock.
+Bound commands must not overlap, including read and wait commands. A background
+`prompt --wait` or `agent wait` holds this lock until it settles or times out;
+concurrent calls return lock refusal (11, or 4 during a dialog read). Use finite
+wait timeouts and await each command before reading or answering a dialog. A
+lock refusal is not proof that Herdr is unavailable or the worker is absent.
 Failure cleans up only a newly created pane when its identity remains consistent;
 a reused pane is never closed as failure cleanup. An unavailable identity query
 leaves the pane for inspection. Never blindly retry an ambiguous launch.
@@ -51,12 +56,24 @@ observation. A changed receipt refuses further commands even when the controller
 and worker name are unchanged. A sequence from a replacement worker is not
 accepted as delivery evidence for the original dialog.
 
-`worker-start.sh`/`worker-stop.sh` return 0 on success, 2 for arguments, 3 for an
-invalid run/root or retirement binding, 4 for missing retirement receipt, 10 for
+`worker-start.sh`/`worker-stop.sh` return 0 on success, 2 for arguments, 3 for a
+missing/invalid run or absent state root, 4 for missing retirement receipt, 10 for
 unavailable/invalid state or transport, 11 for owner/session/lock/handoff refusal,
 12 for same-kind collaboration, 13 for an already-live `--create`, and 14 for a
 retained worker kind mismatch. Read the diagnostic; do not retry mutation merely
 because the helper returned nonzero.
+
+`herdr.sh` returns 15 with `outcome=delivery-uncertain` after forwarding a prompt
+or key command if the receipt changes or Herdr returns nonzero (including timeout).
+Do not resend it automatically: the input may already have landed. A pre-forward
+refusal keeps its original status. `answer-dialog.sh` maps uncertain sends to 6;
+5 means only that the bound adapter refused before forwarding. A legacy transport
+send failure is also uncertain because it cannot establish non-delivery.
+
+Helper shell entry points use isolated Python (`-I`), excluding workspace modules,
+`PYTHONPATH` and user site customizations. Python helpers add only their own
+installed directory for sibling imports. Keep the installed helper tree trusted;
+this does not replace native worker restrictions or the live state-root probe.
 
 ## Receipt and compatibility boundary
 
@@ -73,8 +90,10 @@ No startup bulk migration, reset, or approval rewrite occurs.
 
 For v1, status and approval inspection retain their published ambient transport;
 the new start/stop path refuses ownership until an explicit handoff. The prior
-installed helper may still operate an untouched v1 receipt. It rejects v2 because
-v2 no longer contains `lead_pane_id`; do not operate old/new helpers concurrently.
+installed receipt-aware lifecycle, approval and status helpers reject v2 because
+it no longer contains `lead_pane_id`. However, its dialog helper and plain Herdr
+prompts do not inspect the receipt and can still drive the worker. Stopping the
+old lead is essential; do not operate old/new helpers concurrently.
 After the user authorizes handoff and confirms the intended session and stopped
 old lead, start with its exact owner:
 
@@ -92,8 +111,8 @@ an identity mismatch, or an unavailable query refuses recovery. The new receipt 
 published only after successful startup; failure retains the previous owner.
 v2 handoff cannot change the recorded Herdr session. v1 did not
 record a session, so the user's session selection is part of that handoff decision.
-The exact old receipt bytes are preserved as `worker-<sha256>.json` before atomic
-replacement. Each archive is fully written and synced before atomic publication
+On handoff or same-controller replacement, the exact old receipt bytes are preserved
+as `worker-<sha256>.json` before atomic replacement. Each archive is fully written and synced before atomic publication
 without overwrite. An interrupted write can be retried; an existing conflicting
 archive is preserved and refused. Refusal leaves the original receipt and all run
 records intact.

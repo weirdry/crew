@@ -40,7 +40,7 @@ state fields shown in the file table, and then update `<state>/.current`:
 
 ```bash
 state_json=$(<crew-skill-dir>/scripts/state-root.sh) || exit
-state=$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["state_root"])' "$state_json") || exit
+state=$(python3 -I -c 'import json,sys; print(json.loads(sys.argv[1])["state_root"])' "$state_json") || exit
 mkdir -p "$state"
 exclude_file=$(git rev-parse --path-format=absolute --git-path info/exclude) || exit
 if ! grep -Fqx '.crew/' "$exclude_file" 2>/dev/null; then
@@ -78,6 +78,8 @@ directory, and the inert approval audit copied there at Finishing:
 | File | Written by | Purpose |
 | --- | --- | --- |
 | `<state>/.current` | lead | Active run id; present from initialization through an open run, removed after terminal Finishing |
+| `<state>/partner.lock` | lifecycle and bound-command helpers | Serializes partner operations; retained between calls |
+| `<state>/worker-<sha256>.json` | `worker-start.sh` | Exact prior receipt bytes preserved on handoff or same-controller replacement; historical evidence only |
 | `<state>/worker.json` | `worker-start.sh` | Workspace partner identity, controller ownership and session used by attach and guarded retirement |
 | `<state>/<run-id>/approvals.jsonl` | `approval.sh` | Run-scoped exact approvals plus inert set-grant proposals and granted sets |
 | `.crew/<run-id>/approvals.audit.jsonl` | `run-finish.sh` | Inert terminal copy of the approval record; never read as authority |

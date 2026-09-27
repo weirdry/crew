@@ -83,6 +83,12 @@ exercise session routing and reject a wrong controller before reading or sending
 Dialog tests replace the receipt during visible reads and after the final typed
 approval guard, asserting that no key reaches the replacement. An unchanged typed
 approval still sends exactly once. Approval extraction also rejects receipt changes.
+Forwarded prompts and keys report uncertain delivery if their response fails or
+their receipt changes after forwarding; pre-forward refusal sends nothing. Planted
+workspace modules and `PYTHONPATH`/`sitecustomize` probes verify isolated helper
+imports. Fixture setup clears inherited controller/dialog-pin and Herdr variables
+before applying explicit case settings. The independent-review follow-up also runs
+the complete suite with those variables deliberately set in the parent environment.
 The old pane identity itself is no longer a prerequisite to collaboration.
 
 ## Status inspection coverage

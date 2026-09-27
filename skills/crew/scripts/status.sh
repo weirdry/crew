@@ -21,7 +21,7 @@ esac
 script_dir=${0%/*}
 [ "$script_dir" != "$0" ] || script_dir=.
 
-python3 -B - "$script_dir" "${1-}" <<'PY'
+python3 -I -B - "$script_dir" "${1-}" <<'PY'
 from __future__ import annotations
 
 import json

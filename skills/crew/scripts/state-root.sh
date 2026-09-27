@@ -12,7 +12,7 @@ if [ "$#" -ne 0 ]; then
   exit 2
 fi
 
-python3 - <<'PY'
+python3 -I - <<'PY'
 from pathlib import Path
 import hashlib
 import json

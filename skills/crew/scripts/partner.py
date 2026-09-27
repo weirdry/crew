@@ -13,6 +13,9 @@ import subprocess
 import sys
 import tempfile
 
+# Shell entry points use isolated Python; add only the installed helper directory.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
 from herdr_transport import Herdr, TransportError
 
 TOKEN = r'[A-Za-z0-9][A-Za-z0-9._:-]{0,127}'
@@ -159,8 +162,6 @@ def operate(args, root, cwd, name):
         if args.action == 'stop':
             if receipt is None:
                 raise Refused('partner receipt absent', 4)
-            if receipt['version'] != 2 or owner(receipt) != args.controller:
-                raise Refused('retirement requires the recorded controller', 3)
             verify(transport.agent(receipt['worker_name']), receipt)
             unchanged(path, receipt)
             verify(transport.agent(receipt['worker_name']), receipt)
@@ -169,7 +170,10 @@ def operate(args, root, cwd, name):
             path.unlink()
             print('closed_pane_id=' + receipt['worker_pane_id'])
             return
-        current = regular(root / '.current').decode().splitlines()
+        try:
+            current = regular(root / '.current').decode().splitlines()
+        except FileNotFoundError as error:
+            raise Refused('active-run pointer absent; initialize a run first', 3) from error
         if len(current) != 1 or not re.fullmatch(TOKEN, current[0]):
             raise Refused('invalid active-run pointer', 3)
         run = Path(cwd) / '.crew' / current[0]

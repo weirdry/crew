@@ -98,7 +98,7 @@ answers within the frozen task or escalates the actual decision to the user,
 then publishes its response. Once the worker is receptive, send a pointer:
 
 ~~~sh
-herdr agent prompt <worker> "Read .crew/<run-id>/relay/000002.md, which answers .crew/<run-id>/relay/000001.md. Continue the existing task within its scope. Write the required report and reply with its path." --wait --timeout 600000
+CREW_CONTROLLER_ID="$controller_id" <crew-skill-dir>/scripts/herdr.sh agent prompt <worker> "Read .crew/<run-id>/relay/000002.md, which answers .crew/<run-id>/relay/000001.md. Continue the existing task within its scope. Write the required report and reply with its path." --wait --timeout 600000
 ~~~
 
 A published clarification is distinct from a live free-text permission/trust

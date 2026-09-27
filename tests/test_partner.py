@@ -23,8 +23,9 @@ class PartnerTests(unittest.TestCase):
         self.cwd = self.base / 'workspace'
         self.cwd.mkdir()
         self.env = os.environ.copy()
-        for key in ('HERDR_ENV', 'HERDR_PANE_ID', 'HERDR_SESSION', 'CODEX_THREAD_ID'):
-            self.env.pop(key, None)
+        for key in list(self.env):
+            if key.startswith('HERDR_') or key in ('CODEX_THREAD_ID', 'CREW_DIALOG_RECEIPT_SHA256'):
+                self.env.pop(key)
         self.env.update(CREW_STATE_DIR=str(self.base/'state'), CREW_CONTROLLER_ID='lead-session',
                         HERDR_STUB_FIXTURE=str(self.base/'fixture.json'),
                         HERDR_STUB_CALL_LOG=str(self.base/'calls.jsonl'),
@@ -123,6 +124,43 @@ class PartnerTests(unittest.TestCase):
     def test_workspace_selection_controls_placement_only(self):
         self.launch(workspace=True)
         self.success(self.start('--workspace','w1'))
+
+    def test_workspace_python_modules_cannot_run_inside_helpers(self):
+        marker=self.root/'planted.txt'
+        payload=f'open({str(marker)!r}, "w").write("executed")\nraise RuntimeError("workspace module imported")\n'
+        for name in ('pathlib','hashlib','json','re'):
+            (self.cwd/(name+'.py')).write_text(payload)
+        self.success(self.run_helper('state-root.sh'))
+        self.store()
+        self.add(['agent','get',self.name], {'agent':self.live},repeat=True)
+        self.success(self.start())
+        self.add(['agent','prompt',self.name,'review'], {'stdout':'accepted\n'})
+        self.success(self.run_helper('herdr.sh',['agent','prompt',self.name,'review']))
+        self.success(self.run_helper('relay.sh',['--help']))
+        report=self.cwd/'report.md'; report.write_text('STATUS: done\n')
+        self.success(self.run_helper('artifact-done.sh',[str(report)]))
+        self.assertFalse(marker.exists())
+
+    def test_pythonpath_and_sitecustomize_cannot_override_helper_imports(self):
+        marker=self.root/'planted.txt'
+        for name in ('sitecustomize','hashlib'):
+            (self.cwd/(name+'.py')).write_text(f'open({str(marker)!r}, "w").write("executed")\n')
+        self.env['PYTHONPATH']=str(self.cwd)
+        self.success(self.run_helper('state-root.sh'))
+        self.assertFalse(marker.exists())
+
+    def test_missing_active_pointer_returns_documented_run_error(self):
+        self.pointer.unlink()
+        self.assertEqual(self.start().returncode,3)
+        self.assertEqual(self.calls(),[])
+
+    def test_retirement_owner_refusal_returns_documented_binding_error(self):
+        self.store(self.receipt|{'controller_id':'old'})
+        before=self.path.read_bytes()
+        result=self.run_helper('worker-stop.sh',['--controller','lead-session','--lead-kind','codex','--session','work'])
+        self.assertEqual(result.returncode,11)
+        self.refused_unchanged(result,before)
+        self.assertEqual(self.calls(),[])
 
     def test_same_controller_reuses_without_launch_or_rewrite(self):
         self.store(); before=self.path.read_bytes()
@@ -299,6 +337,53 @@ class PartnerTests(unittest.TestCase):
         self.assertEqual(self.run_helper('herdr.sh',['agent','prompt',self.name,'x']).returncode,11)
         self.assertEqual(self.calls(),[])
 
+    def test_forwarded_prompt_with_changed_receipt_is_delivery_uncertain(self):
+        self.store()
+        self.add(['agent','get',self.name], {'agent':self.live})
+        args=['agent','prompt',self.name,'review']
+        self.add(args, {'stdout':'accepted\n','effects':[
+            {'action':'write','path':str(self.path),'content_json':self.receipt|{'worker_pane_id':'w1:p3'}}]})
+        result=self.run_helper('herdr.sh',args)
+        self.assertEqual(result.returncode,15,result.stdout+result.stderr)
+        self.assertIn('delivery-uncertain',result.stderr)
+        self.assertIn('accepted',result.stdout)
+        self.assertEqual(sum('prompt' in call for call in self.calls()),1)
+
+    def test_forwarded_prompt_timeout_is_delivery_uncertain(self):
+        self.store()
+        self.add(['agent','get',self.name], {'agent':self.live})
+        args=['agent','prompt',self.name,'review','--wait','--timeout','1000']
+        self.add(args, {'error':'timeout'})
+        result=self.run_helper('herdr.sh',args)
+        self.assertEqual(result.returncode,15,result.stdout+result.stderr)
+        self.assertIn('delivery-uncertain',result.stderr)
+        self.assertEqual(sum('prompt' in call for call in self.calls()),1)
+
+    def test_forwarded_keys_with_changed_receipt_are_delivery_uncertain(self):
+        self.store()
+        blocked=self.live|{'agent_status':'blocked','state_change_seq':10}
+        self.add(['agent','get',self.name], *[{'agent':blocked} for _ in range(6)])
+        self.add(['agent','read',self.name,'--source','visible','--lines','120','--format','text'],
+                 {'stdout':'Would you like to continue?\n1. Yes\n2. No\n'})
+        self.add(['agent','send-keys',self.name,'1'], {'stdout':'accepted\n','effects':[
+            {'action':'write','path':str(self.path),'content_json':self.receipt|{'worker_pane_id':'w1:p3'}}]})
+        result=self.run_helper('answer-dialog.sh',[self.name,'1'])
+        self.assertEqual(result.returncode,6,result.stdout+result.stderr)
+        self.assertIn('outcome=delivery-uncertain',result.stdout)
+        self.assertNotIn('outcome=send-failed',result.stdout)
+        self.assertEqual(sum('send-keys' in call for call in self.calls()),1)
+
+    def test_keys_refused_before_forwarding_report_no_delivery(self):
+        self.store()
+        blocked=self.live|{'agent_status':'blocked','state_change_seq':10}
+        self.add(['agent','get',self.name], *[{'agent':blocked} for _ in range(5)],
+                 {'agent':blocked|{'pane_id':'w1:p3'}})
+        self.add(['agent','read',self.name,'--source','visible','--lines','120','--format','text'],
+                 {'stdout':'Would you like to continue?\n1. Yes\n2. No\n'})
+        result=self.run_helper('answer-dialog.sh',[self.name,'1'])
+        self.assertEqual(result.returncode,5,result.stdout+result.stderr)
+        self.assertFalse(any('send-keys' in call for call in self.calls()))
+
     def test_dialog_send_uses_verified_session_and_one_shot_keys(self):
         self.store()
         blocked=self.live|{'agent_status':'blocked','state_change_seq':10}
@@ -340,6 +425,8 @@ class PartnerTests(unittest.TestCase):
 
     def test_typed_dialog_sends_once_when_binding_is_unchanged(self):
         self.store()
+        marker=self.root/'planted.txt'
+        (self.cwd/'json.py').write_text(f'open({str(marker)!r}, "w").write("executed")\n')
         blocked=self.live|{'agent_status':'blocked','state_change_seq':10}
         advanced=blocked|{'agent_status':'working','state_change_seq':11}
         self.add(['agent','get',self.name], *[{'agent':blocked} for _ in range(7)],
@@ -354,6 +441,7 @@ class PartnerTests(unittest.TestCase):
         self.success(result)
         self.assertIn('outcome=expected-match',result.stdout)
         self.assertEqual(sum('send-keys' in call for call in self.calls()),1)
+        self.assertFalse(marker.exists())
 
     def test_approval_rejects_receipt_changed_during_extraction(self):
         self.store()
