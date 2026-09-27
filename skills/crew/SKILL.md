@@ -28,8 +28,11 @@ identify the running lead in Herdr's agent list. Do not infer it from focus,
 agent kind, workspace cwd, or a daemon-side `HERDR_PANE_ID`. Do not set
 `HERDR_*` by hand. If a named Herdr session is used, also obtain its name.
 The explicit ID selects a target; it is not a machine-verified conversation
-identity. This scoped Crew path does not authorize unrelated Herdr inspection
-or control from a daemon-side command runner.
+identity. For this user-requested Crew workflow, an explicit selection satisfies
+Crew's Herdr entry condition even when `HERDR_ENV` is absent from the command
+runner. Use only explicit pane, agent, and session targets thereafter. This
+scoped path does not authorize unrelated Herdr inspection or control from a
+daemon-side command runner.
 
 For the explicit path, pass `--lead-pane <lead-pane-id>` to both worker helpers.
 Add `--session <name>` for a named Herdr session and prefix direct Herdr CLI
