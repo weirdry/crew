@@ -18,14 +18,13 @@
   approval reuse still requires a successful live state-root probe. The launch
   arguments have offline coverage and direct Claude CLI smoke evidence, but
   their effective Herdr behavior is not yet verified.
-- Accept an explicitly selected lead pane and named Herdr session in worker
-  start and stop helpers. Codex command runners refuse inherited `HERDR_*`
-  values without that selection, since a shared daemon can omit or reuse
-  another client's values. Herdr validates the selected live lead before worker
-  creation, and retirement still checks the recorded lead and worker identity.
-  `HERDR_ENV` is a pane-local hint, not a Herdr API requirement. Automatic
-  Codex thread-to-pane binding remains an upstream client-context gap; a
-  special `codex --no-daemon` launch is no longer a Crew prerequisite.
+- Record the Codex shared-daemon context regression as an unresolved
+  client-to-pane binding dependency. A daemon can omit Herdr variables or retain
+  another pane's values, so their presence alone does not establish caller
+  ownership. `HERDR_ENV` is a pane-local hint, not a Herdr API requirement.
+  Neither `CODEX_THREAD_ID` nor UI focus safely recovers the pane. Crew stops
+  when the command runner's origin is unknown; asking for a manual pane ID or
+  relaunching with `--no-daemon` is not presented as the fix.
 - Refresh packaged installation examples to the verified published v0.1.3 tag.
   The managed installer and retained-state formats are unchanged.
 

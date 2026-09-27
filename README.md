@@ -19,29 +19,30 @@ for that. The skill refuses the same-kind case on purpose.
 
 ## Requirements
 
-- Herdr, with the lead agent running in a Herdr pane
+- Herdr, with a lead command runner reliably bound to its Herdr pane
 - Two supported agent kinds installed locally (e.g. Claude Code and Codex)
 - A Git working tree, for diff-based review
 
-Crew needs the lead pane ID to place the worker beside it and to record which
-pane owns the partner. `HERDR_ENV` is only a hint that the command runner was
-launched inside Herdr; it is neither required by Herdr's API nor proof that the
-current conversation owns that pane. Codex CLI 0.157.1's shared background
-server can omit pane variables or inherit them from another client. In that
-case, supply the lead pane ID explicitly to Crew once, using Herdr's agent list
-or pane UI to identify the running lead. The helper accepts `--lead-pane ID` and,
-for a named Herdr session, `--session NAME`. It validates the selected pane
-against Herdr's live agent list before creating or attaching a worker, and
-retirement compares it with the recorded owner. Never derive it from the
-currently focused UI pane or fabricate `HERDR_*` variables. Codex command
-runners require the explicit ID even when ambient `HERDR_*` values are present,
-because those values may belong to a different client.
+Crew uses the lead pane ID to place the worker and record ownership.
+`HERDR_ENV` is a pane-local context hint, not a requirement of Herdr's API or
+proof that this conversation occupies the pane named by `HERDR_PANE_ID`.
+Codex CLI 0.157.1's shared background server can omit those values or inherit
+them from another client. Its `CODEX_THREAD_ID` identifies the conversation,
+but Herdr currently has no reliable mapping from that ID to the originating
+pane in this situation. Herdr's [`--current` option](https://herdr.dev/docs/cli-reference/#panes)
+also requires a pane-local ID; selecting the focused pane would guess.
 
-An explicit pane ID is a user-selected target, not a cryptographic proof of the
-Codex thread's pane. Fully automatic binding for a shared daemon needs a
-per-client identity supplied by Codex or a pane-local Herdr integration; the
-current Herdr Codex hook also reads `HERDR_PANE_ID` from its environment. The
-synthetic daemon probe is in [tests/codex-daemon-context.md](tests/codex-daemon-context.md).
+When the command runner's connection to the lead pane cannot be established,
+stop before Herdr control. Crew cannot obtain this conversation's pane ID
+automatically from the shared daemon. Asking the user to look up and supply an
+ID would be a manual workaround, not a repair to automatic Crew use. A special
+`codex --no-daemon` launch is not a general solution, and an observed
+`codex resume --no-daemon` did not move this conversation's command runner.
+Do not set pane variables by hand or use the UI's focused pane as the caller.
+The general fix needs Codex to pass each requesting client's pane context to
+its command runner, or to expose a client identity that Herdr can independently
+bind to a pane. Crew can then validate that binding against Herdr before it
+splits or closes anything; Crew alone cannot reconstruct missing provenance.
 Related upstream reports cover
 [client context in hooks](https://github.com/openai/codex/issues/44902) and
 [stale terminal variables in hooks](https://github.com/openai/codex/issues/48500);

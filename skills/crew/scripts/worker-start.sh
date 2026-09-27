@@ -19,33 +19,13 @@
 set -u
 
 create_only=no
-lead_pane_id=
-explicit_lead_pane=no
-herdr_session=
-while [ "$#" -gt 0 ]; do
-  case "$1" in
-    --create)
-      if [ "$create_only" = yes ]; then break; fi
-      create_only=yes
-      shift
-      ;;
-    --lead-pane)
-      if [ -n "$lead_pane_id" ] || [ "$#" -lt 2 ] || [ -z "$2" ]; then break; fi
-      lead_pane_id=$2
-      explicit_lead_pane=yes
-      shift 2
-      ;;
-    --session)
-      if [ -n "$herdr_session" ] || [ "$#" -lt 2 ] || [ -z "$2" ]; then break; fi
-      herdr_session=$2
-      shift 2
-      ;;
-    *) break ;;
-  esac
-done
+if [ "${1-}" = --create ]; then
+  create_only=yes
+  shift
+fi
 
 if [ "$#" -ne 1 ]; then
-  printf '%s\n' 'usage: worker-start.sh [--create] [--lead-pane ID] [--session NAME] <kind>' >&2
+  printf '%s\n' 'usage: worker-start.sh [--create] <kind>' >&2
   exit 2
 fi
 
@@ -58,26 +38,10 @@ raise SystemExit(0 if re.fullmatch(r"[a-z][a-z0-9_-]{0,31}", sys.argv[1]) else 1
   exit 2
 fi
 
-if [ "$explicit_lead_pane" != yes ] &&
-   { [ -n "${CODEX_THREAD_ID:-}" ] || [ -n "${CODEX_SESSION_ID:-}" ]; }; then
-  printf '%s\n' 'worker-start.sh: Codex command runner requires --lead-pane; inherited Herdr variables are not a reliable pane binding' >&2
-  exit 3
-fi
-if [ -z "$lead_pane_id" ] && [ "${HERDR_ENV:-}" = 1 ]; then
-  lead_pane_id=${HERDR_PANE_ID:-}
-fi
-if [ -z "$lead_pane_id" ]; then
+if [ "${HERDR_ENV:-}" != 1 ] || [ -z "${HERDR_PANE_ID:-}" ]; then
   printf '%s\n' 'worker-start.sh: Herdr pane context unavailable to this command' >&2
   exit 3
 fi
-
-herdr() {
-  if [ -n "$herdr_session" ]; then
-    command herdr --session "$herdr_session" "$@"
-  else
-    command herdr "$@"
-  fi
-}
 
 script_dir=${0%/*}
 if [ "$script_dir" = "$0" ]; then
@@ -150,7 +114,7 @@ matches = [item.get("agent") for item in agents if item.get("pane_id") == sys.ar
 if len(matches) != 1 or not isinstance(matches[0], str) or not matches[0]:
     raise SystemExit("cannot resolve caller agent kind")
 print(matches[0])
-' "$agents_json" "$lead_pane_id") || exit 3
+' "$agents_json" "$HERDR_PANE_ID") || exit 3
 
 receipt_json=$(python3 -c '
 from pathlib import Path
@@ -288,11 +252,11 @@ if [ "$agent_state" = live ]; then
   fi
 
   ownership=preserved
-  if [ "$lead_pane_id" != "$recorded_lead_pane_id" ]; then
+  if [ "$HERDR_PANE_ID" != "$recorded_lead_pane_id" ]; then
     lead_probe=$(probe_pane "$recorded_lead_pane_id") || exit 10
     lead_state=$(json_field "$lead_probe" state) || exit 10
     if [ "$lead_state" = live ]; then
-      printf 'caller_pane_id=%s\n' "$lead_pane_id" >&2
+      printf 'caller_pane_id=%s\n' "$HERDR_PANE_ID" >&2
       printf 'recorded_lead_pane_id=%s\n' "$recorded_lead_pane_id" >&2
       printf '%s\n' 'outcome=refused:recorded-lead-live' >&2
       exit 11
@@ -317,7 +281,7 @@ try:
     os.replace(temporary, path)
 finally:
     temporary.unlink(missing_ok=True)
-' "$receipt_path" "$recorded_receipt" "$lead_pane_id"; then
+' "$receipt_path" "$recorded_receipt" "$HERDR_PANE_ID"; then
       exit 10
     fi
     ownership=transferred
@@ -340,11 +304,11 @@ if [ "$worker_kind" = "$lead_kind" ]; then
   exit 12
 fi
 
-if [ "$receipt_present" = True ] && [ "$lead_pane_id" != "$recorded_lead_pane_id" ]; then
+if [ "$receipt_present" = True ] && [ "$HERDR_PANE_ID" != "$recorded_lead_pane_id" ]; then
   lead_probe=$(probe_pane "$recorded_lead_pane_id") || exit 10
   lead_state=$(json_field "$lead_probe" state) || exit 10
   if [ "$lead_state" = live ]; then
-    printf 'caller_pane_id=%s\n' "$lead_pane_id" >&2
+    printf 'caller_pane_id=%s\n' "$HERDR_PANE_ID" >&2
     printf 'recorded_lead_pane_id=%s\n' "$recorded_lead_pane_id" >&2
     printf '%s\n' 'outcome=refused:recorded-lead-live' >&2
     exit 11
@@ -365,15 +329,15 @@ if [ "$receipt_present" = True ]; then
 fi
 
 if [ -z "$pane_id" ]; then
-  layout_json=$(herdr pane layout --pane "$lead_pane_id") || exit 3
+  layout_json=$(herdr pane layout --pane "$HERDR_PANE_ID") || exit 3
   direction=$(python3 -c '
 import json, sys
 data = json.loads(sys.argv[1])["result"]["layout"]
 pane_id = sys.argv[2]
 rect = next(item["rect"] for item in data["panes"] if item["pane_id"] == pane_id)
 print("right" if rect["width"] > rect["height"] else "down")
-' "$layout_json" "$lead_pane_id") || exit 3
-  split_json=$(herdr pane split --pane "$lead_pane_id" --direction "$direction" --cwd "$caller_cwd" --no-focus) || exit 4
+' "$layout_json" "$HERDR_PANE_ID") || exit 3
+  split_json=$(herdr pane split --pane "$HERDR_PANE_ID" --direction "$direction" --cwd "$caller_cwd" --no-focus) || exit 4
   pane_id=$(python3 -c '
 import json, sys
 print(json.loads(sys.argv[1])["result"]["pane"]["pane_id"])
@@ -470,7 +434,7 @@ try:
         os.replace(temporary, path)
 finally:
     temporary.unlink(missing_ok=True)
-' "$receipt_path" "$recorded_receipt" "$lead_pane_id" "$pane_id" "$worker_name" "$worker_kind"; then
+' "$receipt_path" "$recorded_receipt" "$HERDR_PANE_ID" "$pane_id" "$worker_name" "$worker_kind"; then
   cleanup_after_failure 9
 fi
 

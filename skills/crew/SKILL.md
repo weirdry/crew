@@ -1,6 +1,6 @@
 ---
 name: crew
-description: "Run a bounded multi-model collaboration loop inside Herdr. This agent acts as lead: it scopes the work, delegates implementation to a worker agent of a DIFFERENT model kind running in a sibling Herdr pane, supervises that worker, reviews its output, and iterates for a fixed number of rounds. Use only when the user explicitly asks for crew (\"crew\", \"crew로\", \"크루로\", \"crew 써서\"). Requires a lead Herdr pane ID, supplied by a reliable pane-local environment or explicitly by the user. Do not use for same-model delegation; use the host agent's own subagent or workflow tooling for that."
+description: "Run a bounded multi-model collaboration loop inside Herdr. This agent acts as lead: it scopes the work, delegates implementation to a worker agent of a DIFFERENT model kind running in a sibling Herdr pane, supervises that worker, reviews its output, and iterates for a fixed number of rounds. Use only when the user explicitly asks for crew (\"crew\", \"crew로\", \"크루로\", \"crew 써서\"). Requires a reliable lead command-runner to Herdr pane binding; HERDR_ENV alone is insufficient. Do not use for same-model delegation; use the host agent's own subagent or workflow tooling for that."
 ---
 
 # Crew
@@ -17,31 +17,26 @@ discards it — neither of which the lead controls.
 
 Check all of these before creating any layout. Stop and report on the first failure.
 
-Establish the lead pane ID before any Herdr control command. When the command
-runner is known to run in this Herdr pane, `HERDR_ENV=1` and a nonempty
-`HERDR_PANE_ID` provide the usual pane-local path. `HERDR_ENV` is a context
-hint, not Herdr API authorization or proof of the current conversation's pane.
-Codex's shared daemon can omit or inherit another client's pane variables, so
-for a Codex lead use an **explicit** lead pane ID supplied by the user even if
-`HERDR_*` appears in the command runner. Ask for it once if absent; the user can
-identify the running lead in Herdr's agent list. Do not infer it from focus,
-agent kind, workspace cwd, or a daemon-side `HERDR_PANE_ID`. Do not set
-`HERDR_*` by hand. If a named Herdr session is used, also obtain its name.
-The explicit ID selects a target; it is not a machine-verified conversation
-identity. For this user-requested Crew workflow, an explicit selection satisfies
-Crew's Herdr entry condition even when `HERDR_ENV` is absent from the command
-runner. Use only explicit pane, agent, and session targets thereafter. This
-scoped path does not authorize unrelated Herdr inspection or control from a
-daemon-side command runner.
+Establish that this command runner is bound to the lead Herdr pane. A shared
+Codex daemon can omit the caller's pane variables or retain those of another
+client. `HERDR_ENV` is a pane-local hint, not Herdr API authorization or proof
+of this conversation's pane. `CODEX_THREAD_ID` does not provide a Herdr pane
+ID, and Herdr's focused pane is not a caller identity. If this Codex
+conversation is daemon-owned or its command-runner origin cannot be proven,
+stop before any Herdr control. Do not ask the user to find a pane ID as the
+routine solution, and do not prescribe `codex --no-daemon` as a general fix.
 
-For the explicit path, pass `--lead-pane <lead-pane-id>` to both worker helpers.
-Add `--session <name>` for a named Herdr session and prefix direct Herdr CLI
-commands with `herdr --session <name>`. Without an explicit ID, the helpers
-require pane-local `HERDR_ENV=1` and `HERDR_PANE_ID`. Never let a missing pane
-ID silently select the focused pane. Codex command runners identified by
-`CODEX_THREAD_ID` or `CODEX_SESSION_ID` reject the implicit environment path.
-The start helper checks the explicit ID against Herdr's live agent list before
-any worker is created or attached.
+```bash
+test "${HERDR_ENV:-}" = 1
+```
+
+If this check fails, report that Herdr pane context is unavailable to this
+agent's command runner and stop. Do not infer that the user's terminal is outside
+Herdr. Even when it passes, verify that the pane values originate from this
+conversation's client before control. In an observed Codex CLI 0.157.1 session,
+`codex resume --no-daemon` left an existing daemon-owned conversation's command
+runner on the shared daemon. Do not treat that flag as recovery. Never fabricate
+pane variables or infer ownership from focus, agent kind, or working directory.
 
 Determine your own kind, then determine the partner kind:
 
@@ -49,7 +44,7 @@ Determine your own kind, then determine the partner kind:
 herdr agent list
 ```
 
-Find the entry whose `pane_id` equals the selected lead pane ID; its `agent` field is your own kind. A live
+Find the entry whose `pane_id` equals `$HERDR_PANE_ID`; its `agent` field is your own kind. A live
 partner recorded in the external state receipt supplies the partner kind; otherwise use whatever the
 user asked for, or any supported kind that is **not** your own. If the retained or requested
 partner is your own kind, tell the user Crew adds nothing over built-in subagents for that pair
@@ -363,9 +358,6 @@ workspace receipt path:
 <crew-skill-dir>/scripts/worker-start.sh <worker-kind>
 ```
 
-For an explicit lead pane, insert `--lead-pane <lead-pane-id>` before the worker kind; insert
-`--session <name>` too when using a named session. Reuse that same selection for retirement.
-
 The helper derives the partner name as `crew-<workspace>-<digest>`. `<workspace>` is up to 14
 normalized characters from the canonical workspace directory name; `<digest>` is the first 12
 lowercase hexadecimal digits of SHA-256 over the canonical absolute workspace path. The result
@@ -403,19 +395,19 @@ herdr agent get <recorded-worker-name>
 herdr pane get <recorded-lead-pane-id>
 ```
 
-Require the live agent's name, kind, and pane id to equal the receipt. If the selected pane is the
+Require the live agent's name, kind, and pane id to equal the receipt. If the caller is the
 recorded lead, retain the receipt unchanged. If the recorded lead pane is absent, recheck the
 agent identity and the unchanged receipt immediately before atomically updating only
 `lead_pane_id`. Refuse attachment while another recorded lead pane is live. Never infer
 ownership from focus, geometry, or visual position.
 
 To create by hand, first establish that no recorded partner is live. If a stale receipt's pane
-still exists, reuse that pane. Otherwise inspect the selected lead pane and choose the direction from
+still exists, reuse that pane. Otherwise inspect the caller pane and choose the direction from
 its rectangle before splitting:
 
 ```bash
-herdr pane layout --pane "$lead_pane_id"
-herdr pane split --pane "$lead_pane_id" --direction right --cwd "$PWD" --no-focus
+herdr pane layout --pane "$HERDR_PANE_ID"
+herdr pane split --pane "$HERDR_PANE_ID" --direction right --cwd "$PWD" --no-focus
 ```
 
 Read the new pane id from `.result.pane.pane_id`. A freshly split or stale recorded pane is not
@@ -784,11 +776,10 @@ Enforced rules:
 - Alternate-screen loss — TUI worker output that scrolls away is unrecoverable from scrollback
   regardless of `--lines`. This is why artifacts are files.
 - Name collision — agent names must be unique among live agents across all workspaces.
-- Wrong-pane cleanup — never close `--current`, the selected lead pane, or a pane copied from visual
+- Wrong-pane cleanup — never close `--current`, `$HERDR_PANE_ID`, or a pane copied from visual
   position. `worker-stop.sh` closes only the partner in `<state>/worker.json`, only after explicit
-  user instruction, and refuses unless the selected lead pane matches the receipt and the live
-  worker name and kind still resolve to the recorded pane. An explicit lead pane is a user
-  assertion, not proof of the command runner's physical location.
+  user instruction, and refuses unless the caller is the recorded lead and the live name and kind
+  still resolve to the recorded pane.
 - Helper changed under a running lead — a development symlink into a repository checkout
   loads edits, pulls and branch switches immediately, even before a commit. A Skills CLI link
   points to its shared installed copy, which can be replaced by an installer update or re-add.
@@ -812,14 +803,11 @@ Finishing and does not require an active run:
 <crew-skill-dir>/scripts/worker-stop.sh
 ```
 
-For an explicit lead pane, pass the same `--lead-pane <lead-pane-id>` and optional
-`--session <name>` used to start or attach the partner.
-
 Stop on every helper refusal. If the recorded lead is gone, initialize a run and attach first so
 guarded ownership transfer makes the current lead responsible for retirement.
 
-Without the helper, read all five receipt fields, require `lead_pane_id == <selected-lead-pane-id>`, require
-`worker_pane_id != <selected-lead-pane-id>`, and run `herdr agent get <recorded-worker-name>`. Close only
+Without the helper, read all five receipt fields, require `lead_pane_id == $HERDR_PANE_ID`, require
+`worker_pane_id != $HERDR_PANE_ID`, and run `herdr agent get <recorded-worker-name>`. Close only
 when the returned name, kind, and pane id exactly equal the receipt, then recheck the unchanged
 receipt before removing it. Never use `--current` for cleanup.
 
