@@ -17,20 +17,25 @@ discards it — neither of which the lead controls.
 
 Check all of these before creating any layout. Stop and report on the first failure.
 
+For a Codex CLI lead, establish that this is a fresh process launched in the
+Herdr pane with `codex --no-daemon` before using Crew. A shared Codex daemon can
+omit the caller's pane variables or retain variables from the pane that first
+started it. The environment check below alone therefore does not prove the
+caller pane's identity. If the launch mode is unknown, or this conversation was
+already owned by a shared daemon, stop and report the unresolved Codex
+client-context dependency. Do not infer the launch mode from the variables.
+
 ```bash
 test "${HERDR_ENV:-}" = 1
 ```
 
 If this check fails, report that Herdr pane context is unavailable to this
 agent's command runner and stop. Do not infer that the user's terminal is outside
-Herdr. A Codex CLI session using the shared background server can have this
-failure even when its visible CLI runs in a Herdr pane. A fresh Codex lead
-session may be launched there with `codex --no-daemon`, but verify
-`HERDR_ENV=1` and `HERDR_PANE_ID` in that session's command runner before any
-Herdr control command. In an observed Codex CLI 0.157.1 session,
-`codex resume --no-daemon` left the existing conversation's command runner on
-the shared daemon; do not recommend resume as a verified fix. Never fabricate
-pane variables.
+Herdr. For a fresh non-daemon Codex lead, verify both `HERDR_ENV=1` and
+`HERDR_PANE_ID` in its command runner before any Herdr control command. In an
+observed Codex CLI 0.157.1 session, `codex resume --no-daemon` left an existing
+daemon-owned conversation's command runner on the shared daemon. Do not treat
+that resume flag as recovery. Never fabricate pane variables.
 
 Determine your own kind, then determine the partner kind:
 
